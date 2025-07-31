@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RSS_Reader.Models;
+using RSS_Reader.Models.DataModels;
 
 namespace RSS_Reader.Controllers;
 
@@ -15,7 +16,8 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
-        return View();
+        List<Feed> feeds = new List<Feed>();
+        return View(feeds);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

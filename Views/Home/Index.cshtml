@@ -1,4 +1,5 @@
-﻿@{
+﻿@using RSS_Reader.Models.DataModels
+@{
     ViewData["Title"] = "RSS Reader - Feeds";
 }
 
@@ -12,7 +13,7 @@
         <aside class="col-md-3 bg-body-secondary p-3 border-end rounded">
             <div class="nav flex-column nav-pills gap-2">
                 <h4 class="text-center">Feeds</h4>
-                @foreach (var feed in Model.Feeds)
+                @foreach (var feed in Model ?? new List<Feed>())
                 {
                     <button class="nav-link text-start" data-url="/feed/@feed.Id">@feed.Title</button>
                 }
@@ -22,26 +23,21 @@
 
         <!-- #region Feed Content -->
         <div class="col-md-9">
-                <div id="feed-container" class="position-relative h-100">
-                    <div id="main-spinner" class="spinner-overlay d-none rounded-4">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
+            <div id="feed-container" class="position-relative h-100">
+                <div id="main-spinner" class="spinner-overlay d-none rounded-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
 
-                <main class="p-4 h-100">
-                    <div id="feed-content" class="h-100">
-                        <div class="h-100 d-flex justify-content-center align-items-center">
-                            <p>Select a feed...</p>
-                        </div>
+            <main class="p-4 h-100">
+                <div id="main-content" class="h-100">
+                    <div class="h-100 d-flex justify-content-center align-items-center">
+                        <p>Select a feed...</p>
                     </div>
-                </main>
+                </div>
+            </main>
+            </div>
         </div>
         <!-- #endregion Feed Content -->
-</div>
-
-
-@section Scripts {
-    <script src="~/js/site.js" asp-append-version="true"></script>
-}
+    </div>
