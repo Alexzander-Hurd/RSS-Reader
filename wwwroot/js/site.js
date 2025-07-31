@@ -72,30 +72,41 @@ function GetArticleHandler(e) {
 
     console.log("Get Handler Triggered");
 
-    const originalAction = new URL(e.currentTarget.getAttribute("data-url"));
+    const originalAction = e.currentTarget.getAttribute("data-url");
 
-    fetch(originalAction.toString(), {
+    fetch(originalAction, {
         method: "GET",
         headers: { "X-Requested-With": "XMLHttpRequest" }
     })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response;
+        })
         .then(response => response.text())
         .then(text => {
+            let fail = "";
             try {
                 json = JSON.parse(text);
-                showToast(json.Title, json.Message, json.success);
+                showToast(json.Title, json.Message, json.success); console.error(error);
+                hideSpinner();
+                fail = json.message;
             }
             catch (error) {
                 try {
                     document.getElementById("main-content").innerHTML = text;
+                    bindArticles();
                 }
                 catch (error) {
                     console.log(error);
-                    showToast("Error Loading Page", "There was an error loading the page, please try again", false);
+                    throw new Error(error);
                 }
             }
-        })
-        .then(() => {
-            bindArticles();
+
+            if (fail !== "") {
+                throw new Error(fail);
+            }
         })
         .then(() => {
             hideSpinner();
@@ -140,16 +151,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         showSpinner();
 
-        // Update tab UI
-        tabButtons.forEach(btn => btn.classList.remove("active"));
-        button.classList.add("active");
-
         fetch(url, {
             headers: { "X-Requested-With": "XMLHttpRequest" }
         })
             .then(response => response.text())
             .then(text => {
-
                 try {
                     json = JSON.parse(text);
                     showToast(json.Title, json.Message, json.success);
@@ -157,21 +163,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 catch (error) {
                     try {
                         document.getElementById("main-content").innerHTML = text;
+                        bindArticles();
+                        if (updateHistory) {
+                            history.pushState(null, null, window.location.pathname + "?tab=" + tab);
+                        }
+                        // Update tab UI
+                        tabButtons.forEach(btn => btn.classList.remove("active"));
+                        button.classList.add("active");
                     }
                     catch (error) {
                         console.log(error);
-                        showToast("Error Loading Page", "There was an error loading the page, please try again", false);
+                        throw new Error(error);
                     }
-
                 }
             })
             .then(() => {
-                bindArticles();
-            })
-            .then(() => {
-                if (updateHistory) {
-                    history.pushState(null, null, window.location.pathname + "?tab=" + tab);
-                }
                 hideSpinner();
             })
             .catch(error => {
