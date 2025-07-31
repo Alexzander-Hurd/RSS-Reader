@@ -11,11 +11,11 @@
         @foreach (var item in Model.Entries ?? new List<Entry>())
         {
             <div class="card mt-2" style="width: 100%;">
-                <div class="card-body d-flex">
+                <div class="card-body d-flex justify-content-between">
                     <h5 class="card-title">@item.Title</h5>
                     <p class="card-text">@item.Description</p>
                     <p class="card-text"><small class="text-muted">Last updated @item.PubDate</small></p>
-                    <button data-url="@item.Link" class="btn btn-primary article-link">Read More</button>
+                    <button data-url="@Url.Action("article", "home", new { id = item.Id })" class="btn btn-primary article-link">Read More</button>
                 </div>
             </div>
         }

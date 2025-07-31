@@ -39,6 +39,13 @@ public class HomeController : Controller
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") return Json(new
+        {
+            Title = "Error loading page",
+            Message = "There was an error loading the page, please try again",
+            Success = false
+        });
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }
