@@ -60,3 +60,4 @@ nunit-*.xml
 # SQLite DB
 AppData/*.db
 AppData/*.db-journal 
+AppData/*.sql
