@@ -55,3 +55,8 @@ nunit-*.xml
 
 # JS and CSS maps
 *.min.*.map
+
+# App Data files
+# SQLite DB
+AppData/*.db
+AppData/*.db-journal 
