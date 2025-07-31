@@ -1,4 +1,3 @@
-```markdown
 # 🗺️ Feed Aggregator – Project Roadmap
 
 A self-hosted, personal feed aggregator built in **ASP.NET Core Razor MVC**. Designed to ingest traditional **RSS feeds**, modern **JSON feeds**, and **webhook-based push sources**, with modular mapping support and a plugin-friendly architecture.
@@ -14,11 +13,11 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 ### Features
 - Add/remove feed URLs via the UI
 - Fetch and parse RSS feeds using `System.ServiceModel.Syndication`
-- Store feed metadata and entries in a local DB (SQLite or LiteDB)
+- Store feed metadata and entries in a local DB (SQLite)
 - Display title, publish date, and summary/content
 - Manual refresh + background polling via `IHostedService`
 - Read/unread entry tracking
-- Responsive UI using Bootstrap 5 (or Tailwind CSS)
+- Responsive UI using Bootstrap 5
 
 ---
 
@@ -68,7 +67,7 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 {
   "title": "article.title",
   "date": "meta.published_at",
-  "content": "body",
+  "description": "body",
   "link": "links.read_more"
 }
 ```
@@ -107,7 +106,6 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Improve daily usability and engagement with the app
 
 ### Features
-- Dark mode toggle
 - Feed grouping and tagging
 - Custom sorting (newest, unread, per tag)
 - Configurable feed refresh schedule (per-feed basis)
@@ -134,7 +132,6 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 ### Features
 - Unit tests for feed parsers, mappers, and scheduler
 - Integration tests for full fetch → display loop
-- Swagger/OpenAPI support for internal API
 - Developer quick-start and contribution guide
 - Predefined JSON/RSS test feeds for testing
 
@@ -145,11 +142,9 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 - OPML import/export for feed subscriptions
 - User accounts and personal configs
 - Mobile-first PWA wrapper
-- Email digest of new entries
 - CLI sync tool
 - WebSub (PubSubHubbub) support for near real-time RSS updates
 
 ---
 
-_You're welcome to fork this roadmap or propose changes. Feedback and contributions are encouraged once plugin architecture is implemented!_
-```
+_You're welcome to fork this roadmap or propose changes. Feedback and contributions are encouraged!_

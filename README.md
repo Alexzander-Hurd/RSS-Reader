@@ -98,7 +98,7 @@ More detailed examples and screenshots will be added soon.
 
 ## 🛣 Roadmap
 
-See [ROADMAP.md](https://github.com/Alexzander-Hurd/RSS-Reader/blob/main/ROADMAP.md) for the full development plan.
+See [ROADMAP.md](ROADMAP.md) for the full development plan.
 
 Planned key features include:
 
