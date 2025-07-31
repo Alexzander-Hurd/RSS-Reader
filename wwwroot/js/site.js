@@ -166,7 +166,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             })
             .then(() => {
-                bindDeleteModalHandlers();
                 bindArticles();
             })
             .then(() => {

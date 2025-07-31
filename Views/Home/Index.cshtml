@@ -1,4 +1,5 @@
 ﻿@using RSS_Reader.Models.DataModels
+@model List<Feed>
 @{
     ViewData["Title"] = "RSS Reader - Feeds";
 }
@@ -13,6 +14,7 @@
         <aside class="col-md-3 bg-body-secondary p-3 border-end rounded">
             <div class="nav flex-column nav-pills gap-2">
                 <h4 class="text-center">Feeds</h4>
+                <button class="nav-link text-start" data-url="/feed/fake">Fake Feed</button>
                 @foreach (var feed in Model ?? new List<Feed>())
                 {
                     <button class="nav-link text-start" data-url="/feed/@feed.Id">@feed.Title</button>
