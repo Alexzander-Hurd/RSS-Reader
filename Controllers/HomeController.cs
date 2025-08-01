@@ -7,6 +7,7 @@ using RSS_Reader.Models.DataModels;
 using System.ServiceModel.Syndication;
 using System.Xml;
 using System.Net;
+using RSS_Reader.Helpers;
 
 namespace RSS_Reader.Controllers;
 
@@ -151,11 +152,15 @@ public class HomeController : Controller
 
                 if (!string.IsNullOrEmpty(contentEncoded)) FullContent = contentEncoded;
                 else if (!string.IsNullOrEmpty(atomContent) && atomContent != summary && atomContent.Length > summary?.Length) FullContent = atomContent;
-                else if (!string.IsNullOrEmpty(summary) && summary.Length > 1000)
+                if (!string.IsNullOrEmpty(summary))
                 {
-                    FullContent = summary;
-                    summary = summary.Substring(0, 1000) + "..."; // Truncate long summaries
+                    if (string.IsNullOrEmpty(FullContent) && string.IsNullOrEmpty(atomContent) && summary.Length > 1000) FullContent = summary;
+
+                    summary = HtmlUtils.RemoveHtmlTags(summary);
+                    if (summary.Length > 300) summary = summary.Substring(0, 300) + "..."; // Truncate long summaries
                 }
+
+
 
                 entry = new Entry()
                 {
