@@ -36,6 +36,39 @@ public class HomeController : Controller
         return PartialView(feed);
     }
 
+    [HttpPost("/addfeed")]
+    public async Task<IActionResult> AddFeed(string title, string url)
+    {
+        try
+        {
+            _logger.LogInformation($"Adding feed {title} with url {url}");
+
+            Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Link == url);
+            if (feed == null)
+            {
+                feed = new Feed()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Title = title,
+                    Link = url,
+                    Entries = new List<Entry>()
+                };
+                _context.Feeds.Add(feed);
+                await _context.SaveChangesAsync();
+
+                return Json(feed);
+            }
+            else
+            {
+                return Json(new { Title = "Feed already exists", Message = "The feed already exists in the database", Success = false });
+            }
+        }
+        catch (System.Exception)
+        {
+            return Json(new { Title = "Error adding feed", Message = "Failed to add feed to the database", Success = false });
+        }
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {

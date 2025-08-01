@@ -9,16 +9,20 @@
         @ViewData["Title"]
     </h1>
 
-    <div class="row mt-3">
+    <div class="row mt-3" style="min-height: 50vh;">
         <!-- #region Feed List -->
         <aside class="col-md-3 bg-body-secondary p-3 border-end rounded">
-            <div class="nav flex-column nav-pills gap-2">
+            <div id="feed-list" class="nav flex-column nav-pills gap-2">
                 <h4 class="text-center">Feeds</h4>
-                <button class="nav-link text-start" data-url="/feed/fake">Fake Feed</button>
-                @foreach (var feed in Model ?? new List<Feed>())
-                {
-                    <button class="nav-link text-start" data-url="/feed/@feed.Id">@feed.Title</button>
-                }
+                <div id="feeds" class="nav flex-column nav-pills gap-2">
+                    @foreach (var feed in Model ?? new List<Feed>())
+                    {
+                        <button class="nav-link text-start" data-url="/feed/@feed.Id">@feed.Title</button>
+                    }
+                </div>
+                <hr class="my-2" />
+                <button data-bs-toggle="modal" data-bs-target="#addFeedModal" class="btn btn-primary text-center">Add
+                    Feed</button>
             </div>
         </aside>
         <!-- #endregion Feed List -->
@@ -32,14 +36,83 @@
                     </div>
                 </div>
 
-            <main class="p-4 h-100">
-                <div id="main-content" class="h-100">
-                    <div class="h-100 d-flex justify-content-center align-items-center">
-                        <p>Select a feed...</p>
+                <main class="p-4 h-100">
+                    <div id="main-content" class="h-100">
+                        <div class="h-100 d-flex justify-content-center align-items-center">
+                            <p>Select a feed...</p>
+                        </div>
                     </div>
-                </div>
-            </main>
+                </main>
             </div>
         </div>
         <!-- #endregion Feed Content -->
     </div>
+
+    <div class="modal fade" id="addFeedModal" tabindex="-1" aria-labelledby="addFeedModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="addFeedModalLabel">Add Feed</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addFeedForm" class="row g-3">
+                        <div class="col-12">
+                            <label for="title" class="form-label">Feed Title</label>
+                            <input name="title" type="text" class="form-control" id="title" placeholder="Feed Title">
+                            <label for="url" class="form-label">Feed URL</label>
+                            <input name="url" type="text" class="form-control" id="url" placeholder="Feed URL">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="addFeedButton" onclick="AddFeed()">Add
+                        Feed</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+
+    <script>
+        function AddFeed() {
+            const form = document.getElementById("addFeedForm");
+            const data = new FormData(form);
+            fetch("/addFeed", {
+                method: "POST",
+                body: data
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.text()
+
+                    }
+                    else {
+                        throw new Error("Network response was not ok");
+                    }
+                })
+                .then(responsetext => {
+                    console.log(responsetext);
+                    const feed = JSON.parse(responsetext);
+
+                    let feeds = document.getElementById("feeds");
+                    let button = document.createElement("button");
+
+                    button.classList.add("nav-link", "text-start");
+                    button.setAttribute("data-url", "/feed/" + feed.Id);
+                    button.innerText = feed.Title;
+                    feeds.appendChild(button);
+                    $("#addFeedModal").modal("hide");
+
+                    showToast("Success", "Feed added successfully.", true);
+                })
+                .catch(error => {
+                    console.error(error);
+                    showToast("Error", "An error occurred while adding the feed.", false);
+                });
+        }
+    </script>
+}
