@@ -6,6 +6,7 @@ using RSS_Reader.Models;
 using RSS_Reader.Models.DataModels;
 using System.ServiceModel.Syndication;
 using System.Xml;
+using System.Net;
 
 namespace RSS_Reader.Controllers;
 
@@ -39,9 +40,71 @@ public class HomeController : Controller
         });
 
         HttpClient client = new HttpClient();
-        using var stream = await client.GetStreamAsync(url);
-        using var reader = XmlReader.Create(stream);
-        SyndicationFeed? feedXml = SyndicationFeed.Load(reader);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("RSS-Reader/0.1 (+https://github.com/yourrepo)");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/rss+xml, application/xml");
+        SyndicationFeed? feedXml = null;
+        try
+        {
+            using Stream stream = await client.GetStreamAsync(url);
+            using XmlReader reader = XmlReader.Create(stream);
+            feedXml = SyndicationFeed.Load(reader);
+        }
+        catch (HttpRequestException http)
+        {
+            if (http.StatusCode != null)
+            {
+                switch (http.StatusCode)
+                {
+                    case HttpStatusCode.NotFound:
+                        return Json(new
+                        {
+                            Title = "Feed not found",
+                            Message = "The feed you requested could not be found.",
+                            Success = false
+                        });
+                    case HttpStatusCode.Forbidden:
+                        return Json(new
+                        {
+                            Title = "Access denied",
+                            Message = "You do not have permission to access this feed.",
+                            Success = false
+                        });
+                    case HttpStatusCode.Unauthorized:
+                        return Json(new
+                        {
+                            Title = "Unauthorized",
+                            Message = "You are not authorized to access this feed.",
+                            Success = false
+                        });
+                    default:
+                        return Json(new
+                        {
+                            Title = "Error loading feed",
+                            Message = "There was an error loading the feed.",
+                            Success = false
+                        });
+                }
+            }
+            else
+            {
+                return Json(new
+                {
+                    Title = "Error loading feed",
+                    Message = "There was an error loading the feed.",
+                    Success = false
+                });
+            }
+        }
+        catch (Exception)
+        {
+            return Json(new
+            {
+                Title = "Error loading feed",
+                Message = "There was an error loading the feed.",
+                Success = false
+            });
+        }
+
 
         if (feedXml == null) return Json(new
         {
@@ -57,35 +120,60 @@ public class HomeController : Controller
         foreach (SyndicationItem item in feedXml.Items)
         {
             string? link = item.Links.FirstOrDefault()?.Uri.ToString();
+            string? guid = item.Id;
             Entry? entry = null;
-            if (string.IsNullOrEmpty(link))
+
+            if (string.IsNullOrEmpty(guid))
             {
-                string? guid = item.Id;
-                if (string.IsNullOrEmpty(guid)) continue;
-                entry = entries.FirstOrDefault(e => e.Guid == guid);
+                if (string.IsNullOrEmpty(link)) continue;
+                entry = entries.FirstOrDefault(e => e.Link == link);
             }
             else
             {
-                entry = entries.FirstOrDefault(e => e.Link == link);
+                entry = entries.FirstOrDefault(e => e.Guid == guid);
             }
 
             if (entry == null)
             {
+                string? contentEncoded = item.ElementExtensions
+                    .FirstOrDefault(e => e.OuterName == "content:encoded")?
+                    .GetObject<string>();
+
+                string? atomContent = item.Content is TextSyndicationContent content
+                    ? content.Text
+                    : null;
+
+                string? summary = item.Summary is TextSyndicationContent summaryContent
+                    ? summaryContent.Text
+                    : null;
+
+                string? FullContent = "";
+
+                if (!string.IsNullOrEmpty(contentEncoded)) FullContent = contentEncoded;
+                else if (!string.IsNullOrEmpty(atomContent) && atomContent != summary && atomContent.Length > summary?.Length) FullContent = atomContent;
+                else if (!string.IsNullOrEmpty(summary) && summary.Length > 1000)
+                {
+                    FullContent = summary;
+                    summary = summary.Substring(0, 1000) + "..."; // Truncate long summaries
+                }
+
                 entry = new Entry()
                 {
                     Id = Guid.NewGuid().ToString(),
                     FeedId = id,
                     Title = item.Title.Text,
                     PubDate = item.PublishDate.UtcDateTime,
-                    Link = item.Links[0].Uri.ToString(),
-                    Description = item.Summary?.Text
+                    Link = link ?? "",
+                    Description = summary ?? "",
+                    FullContent = FullContent,
+                    Guid = guid
                 };
                 _context.Entries.Add(entry);
                 entries.Add(entry);
             }
         }
 
-        feed.Entries = entries;
+        feed.Entries = entries.OrderByDescending(e => e.PubDate).ToList();
         _context.Feeds.Update(feed);
         await _context.SaveChangesAsync();
         return PartialView(feed);
