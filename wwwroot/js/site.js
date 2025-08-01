@@ -129,70 +129,81 @@ function bindArticles() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    const tabButtons = document.querySelectorAll("[data-url]");
+// Extract current tab from query param
+function getCurrentTabFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab");
+}
 
-    // Extract current tab from query param
-    function getCurrentTabFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get("tab");
+// Load tab content
+function loadTab(button, tabButtons, updateHistory = true) {
+    const url = button.getAttribute("data-url");
+    const tab = url.split("/").pop().split("?")[0];
+    const currentTab = getCurrentTabFromURL();
+
+    // Avoid redundant load only if history *should* be updated
+    if (tab === currentTab && updateHistory) {
+        return;
     }
 
-    // Load tab content
-    function loadTab(button, updateHistory = true) {
-        const url = button.getAttribute("data-url");
-        const tab = url.split("/").pop().split("?")[0];
-        const currentTab = getCurrentTabFromURL();
+    showSpinner();
 
-        // Avoid redundant load only if history *should* be updated
-        if (tab === currentTab && updateHistory) {
-            return;
-        }
-
-        showSpinner();
-
-        fetch(url, {
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-        })
-            .then(response => response.text())
-            .then(text => {
+    fetch(url, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                json = JSON.parse(text);
+                showToast(json.Title, json.Message, json.success);
+            }
+            catch (error) {
                 try {
-                    json = JSON.parse(text);
-                    showToast(json.Title, json.Message, json.success);
+                    document.getElementById("main-content").innerHTML = text;
+                    bindArticles();
+                    if (updateHistory) {
+                        history.pushState(null, null, window.location.pathname + "?tab=" + tab);
+                    }
+                    // Update tab UI
+                    tabButtons.forEach(btn => btn.classList.remove("active"));
+                    button.classList.add("active");
                 }
                 catch (error) {
-                    try {
-                        document.getElementById("main-content").innerHTML = text;
-                        bindArticles();
-                        if (updateHistory) {
-                            history.pushState(null, null, window.location.pathname + "?tab=" + tab);
-                        }
-                        // Update tab UI
-                        tabButtons.forEach(btn => btn.classList.remove("active"));
-                        button.classList.add("active");
-                    }
-                    catch (error) {
-                        console.log(error);
-                        throw new Error(error);
-                    }
+                    console.log(error);
+                    throw new Error(error);
                 }
-            })
-            .then(() => {
-                hideSpinner();
-            })
-            .catch(error => {
-                console.error(error);
-                showToast("Error Loading Page", "There was an error loading the page, please try again", false);
-                hideSpinner();
-            });
-    }
+            }
+        })
+        .then(() => {
+            hideSpinner();
+        })
+        .catch(error => {
+            console.error(error);
+            showToast("Error Loading Page", "There was an error loading the page, please try again", false);
+            hideSpinner();
+        });
+}
 
+function bindFeeds() {
+
+    const tabButtons = document.querySelectorAll("[data-url]");
     // Handle user-initiated clicks
     tabButtons.forEach(button => {
+        button.removeEventListener("click", function () {
+            loadTab(this, tabButtons, true);
+        });
         button.addEventListener("click", function () {
-            loadTab(this, true);
+            loadTab(this, tabButtons, true);
         });
     });
+
+    return tabButtons;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+
+
+    let tabButtons = bindFeeds();
 
     // Handle back/forward
     window.addEventListener("popstate", function () {
@@ -215,7 +226,7 @@ document.addEventListener("DOMContentLoaded", function () {
             btn.getAttribute("data-url").includes(tab)
         );
         if (button) {
-            loadTab(button, false); // Don't push again during popstate
+            loadTab(button, tabButtons, false); // Don't push again during popstate
         }
     });
 
@@ -226,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
             btn.getAttribute("data-url").includes(initialTab)
         );
         if (button) {
-            loadTab(button, false); // No pushState during first load
+            loadTab(button, tabButtons, false); // No pushState during first load
         }
     }
 });
