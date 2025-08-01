@@ -11,13 +11,13 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: A functional and simple feed reader UI that ingests standard RSS feeds.
 
 ### Features
-- Add/remove feed URLs via the UI
-- Fetch and parse RSS feeds using `System.ServiceModel.Syndication`
-- Store feed metadata and entries in a local DB (SQLite)
-- Display title, publish date, and summary/content
-- Manual refresh + background polling via `IHostedService`
-- Read/unread entry tracking
-- Responsive UI using Bootstrap 5
+- [x] Add/remove feed URLs via the UI
+- [x] Fetch and parse RSS feeds using `System.ServiceModel.Syndication`
+- [x] Store feed metadata and entries in a local DB (SQLite)
+- [x] Display title, publish date, and summary/content
+- [ ] Manual refresh + background polling via `IHostedService`
+- [ ] Read/unread entry tracking
+- [x] Responsive UI using Bootstrap 5
 
 ---
 
@@ -26,10 +26,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Add ability to fetch and display feeds provided in JSON format (e.g., JSONFeed.org).
 
 ### Features
-- Add support for reading JSON-based feeds with standard schema
-- Store & display JSON entries with same UI structure as RSS
-- Manually configure feed URL and static field mappings
-- Use shared data model to unify parsing logic
+- [ ] Add support for reading JSON-based feeds with standard schema
+- [ ] Store & display JSON entries with same UI structure as RSS
+- [ ] Manually configure feed URL and static field mappings
+- [ ] Use shared data model to unify parsing logic
 
 ---
 
@@ -38,9 +38,9 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Make it easier to interact with feed data and triage important entries.
 
 ### Features
-- Simple text search over titles/descriptions
-- Stack-specific filters (e.g., only show feeds tagged `network`, `linux`, etc.)
-- Tagging support for feeds and entries (manual or by keyword detection)
+- [ ] Simple text search over titles/descriptions
+- [ ] Stack-specific filters (e.g., only show feeds tagged `network`, `linux`, etc.)
+- [ ] Tagging support for feeds and entries (manual or by keyword detection)
 
 ---
 
@@ -49,10 +49,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Support data feeds delivered via custom JSON APIs (REST endpoints, etc.)
 
 ### Features
-- Poll external APIs with headers or query strings
-- Treat JSON results like feeds (title/date/content/etc.)
-- Configurable polling interval per feed
-- Store raw responses for debugging
+- [ ] Poll external APIs with headers or query strings
+- [ ] Treat JSON results like feeds (title/date/content/etc.)
+- [ ] Configurable polling interval per feed
+- [ ] Store raw responses for debugging
 
 ---
 
@@ -61,7 +61,7 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Add flexible support for arbitrary JSON feeds using schema mappings
 
 ### Features
-- Allow defining field mappings at feed creation time
+- [ ] Allow defining field mappings at feed creation time
 
 ```json
 {
@@ -72,8 +72,8 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 }
 ```
 
-- Store and apply mappings to normalize data
-- Support JSONPath-style resolution (if feasible)
+- [ ] Store and apply mappings to normalize data
+- [ ] Support JSONPath-style resolution (if feasible)
 
 ---
 
@@ -82,10 +82,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Accept inbound event notifications from CI/CD systems or custom services
 
 ### Features
-- Create webhook receiver endpoints (`/webhook/github`, etc.)
-- Parse payloads and inject them as feed entries
-- Support optional mapping like JSON feeds
-- Filter or transform payloads for known providers (GitHub, GitLab, etc.)
+- [ ] Create webhook receiver endpoints (`/webhook/github`, etc.)
+- [ ] Parse payloads and inject them as feed entries
+- [ ] Support optional mapping like JSON feeds
+- [ ] Filter or transform payloads for known providers (GitHub, GitLab, etc.)
 
 ---
 
@@ -94,10 +94,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Allow developers to add new sources, filters, mappers, or even UI modules
 
 ### Features
-- Define interfaces for `IFeedSource`, `IContentMapper`, etc.
-- Load plugin DLLs from `/plugins` folder using reflection
-- Provide documentation for community contributions
-- Basic plugin discovery UI (list installed plugins)
+- [ ] Define interfaces for `IFeedSource`, `IContentMapper`, etc.
+- [ ] Load plugin DLLs from `/plugins` folder using reflection
+- [ ] Provide documentation for community contributions
+- [ ] Basic plugin discovery UI (list installed plugins)
 
 ---
 
@@ -106,10 +106,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Improve daily usability and engagement with the app
 
 ### Features
-- Feed grouping and tagging
-- Custom sorting (newest, unread, per tag)
-- Configurable feed refresh schedule (per-feed basis)
-- Entry pinning (mark important items)
+- [ ] Feed grouping and tagging
+- [ ] Custom sorting (newest, unread, per tag)
+- [ ] Configurable feed refresh schedule (per-feed basis)
+- [ ] Entry pinning (mark important items)
 
 ---
 
@@ -118,10 +118,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Optimize background tasks and make the app deployment-friendly
 
 ### Features
-- ETag / Last-Modified support for HTTP caching
-- Retry queues for failed fetches
-- Environment-based config (for self-hosted or cloud deployment)
-- Dockerfile and `appsettings.json` scaffolding
+- [ ] ETag / Last-Modified support for HTTP caching
+- [ ] Retry queues for failed fetches
+- [ ] Environment-based config (for self-hosted or cloud deployment)
+- [ ] Dockerfile and `appsettings.json` scaffolding
 
 ---
 
@@ -130,20 +130,20 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Improve maintainability, testability, and onboarding
 
 ### Features
-- Unit tests for feed parsers, mappers, and scheduler
-- Integration tests for full fetch → display loop
-- Developer quick-start and contribution guide
-- Predefined JSON/RSS test feeds for testing
+- [ ] Unit tests for feed parsers, mappers, and scheduler
+- [ ] Integration tests for full fetch → display loop
+- [ ] Developer quick-start and contribution guide
+- [ ] Predefined JSON/RSS test feeds for testing
 
 ---
 
 ## 🛣️ Future Ideas (Not yet scheduled)
 
-- OPML import/export for feed subscriptions
-- User accounts and personal configs
-- Mobile-first PWA wrapper
-- CLI sync tool
-- WebSub (PubSubHubbub) support for near real-time RSS updates
+- [ ] OPML import/export for feed subscriptions
+- [ ] User accounts and personal configs
+- [ ] Mobile-first PWA wrapper
+- [ ] CLI sync tool
+- [ ] WebSub (PubSubHubbub) support for near real-time RSS updates
 
 ---
 
