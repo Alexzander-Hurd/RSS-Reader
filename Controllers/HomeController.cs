@@ -167,7 +167,7 @@ public class HomeController : Controller
                     Id = Guid.NewGuid().ToString(),
                     FeedId = id,
                     Title = item.Title.Text,
-                    PubDate = item.PublishDate.UtcDateTime,
+                    PubDate = item.PublishDate.UtcDateTime == default ? DateTime.UtcNow : item.PublishDate.UtcDateTime > DateTime.UtcNow ? item.PublishDate.UtcDateTime : DateTime.UtcNow,
                     Link = link ?? "",
                     Description = summary ?? "",
                     FullContent = FullContent,
