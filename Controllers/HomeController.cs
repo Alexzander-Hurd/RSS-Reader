@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using RSS_Reader.Data;
 using RSS_Reader.Models;
 using RSS_Reader.Models.DataModels;
+using System.ServiceModel.Syndication;
+using System.Xml;
 
 namespace RSS_Reader.Controllers;
 
@@ -29,10 +31,63 @@ public class HomeController : Controller
     public async Task<IActionResult> Feed(string id)
     {
         Feed? feed = await _context.Feeds.Include(f => f.Entries).FirstOrDefaultAsync(f => f.Id == id);
-        if (feed == null) return Json(new {
-            Title ="Feed not found",
-            Message ="The feed you requested could not be found.",
-            Success =false});
+        if (feed?.Link is not string url) return Json(new
+        {
+            Title = "Feed not found",
+            Message = "The feed you requested could not be found.",
+            Success = false
+        });
+
+        HttpClient client = new HttpClient();
+        using var stream = await client.GetStreamAsync(url);
+        using var reader = XmlReader.Create(stream);
+        SyndicationFeed? feedXml = SyndicationFeed.Load(reader);
+
+        if (feedXml == null) return Json(new
+        {
+            Title = "Feed not found",
+            Message = "The feed you requested could not be found.",
+            Success = false
+        });
+
+        feed.Description = feedXml.Description.Text ?? "";
+
+
+        List<Entry> entries = feed.Entries ?? new List<Entry>();
+        foreach (SyndicationItem item in feedXml.Items)
+        {
+            string? link = item.Links.FirstOrDefault()?.Uri.ToString();
+            Entry? entry = null;
+            if (string.IsNullOrEmpty(link))
+            {
+                string? guid = item.Id;
+                if (string.IsNullOrEmpty(guid)) continue;
+                entry = entries.FirstOrDefault(e => e.Guid == guid);
+            }
+            else
+            {
+                entry = entries.FirstOrDefault(e => e.Link == link);
+            }
+
+            if (entry == null)
+            {
+                entry = new Entry()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    FeedId = id,
+                    Title = item.Title.Text,
+                    PubDate = item.PublishDate.UtcDateTime,
+                    Link = item.Links[0].Uri.ToString(),
+                    Description = item.Summary?.Text
+                };
+                _context.Entries.Add(entry);
+                entries.Add(entry);
+            }
+        }
+
+        feed.Entries = entries;
+        _context.Feeds.Update(feed);
+        await _context.SaveChangesAsync();
         return PartialView(feed);
     }
 
