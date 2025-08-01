@@ -137,7 +137,7 @@ public class HomeController : Controller
             if (entry == null)
             {
                 string? contentEncoded = item.ElementExtensions
-                    .FirstOrDefault(e => e.OuterName == "content:encoded")?
+                    .FirstOrDefault(e => e.OuterName == "encoded")?
                     .GetObject<string>();
 
                 string? atomContent = item.Content is TextSyndicationContent content
@@ -215,6 +215,19 @@ public class HomeController : Controller
         {
             return Json(new { Title = "Error adding feed", Message = "Failed to add feed to the database", Success = false });
         }
+    }
+
+    [HttpGet]
+    [Route("/article/{id}")]
+    public async Task<IActionResult> Article(string id)
+    {
+        Entry? entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == id);
+        if (entry == null) return Json(new { Title = "Article not found", Message = "The article you requested could not be found.", Success = false });
+        ViewBag.standalone = false;
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") return PartialView(entry);
+        ViewBag.standalone = true;
+        return View(entry);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

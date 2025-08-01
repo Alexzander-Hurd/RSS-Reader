@@ -1,0 +1,38 @@
+@using RSS_Reader.Models.DataModels
+@model Entry
+
+@{
+    ViewBag.Title = Model.Title;
+}
+
+@if (!ViewBag.standalone)
+{
+    <button class="btn btn-link text-muted"
+        onclick="history.back()"><small>Back</small></button>
+}
+else
+{
+
+    <a href="/" class="btn btn-link text-muted"><small>Back</small></a>
+}
+
+<h2 class="text-center">@Model.Title</h2>
+
+<div class="d-flex align-items-center justify-content-center">
+    <div class="col-lg-11">
+        <div class="row" style="width: 100%;">
+            <p><small class="text-muted">Last updated @Model.PubDate</small></p>
+        </div>
+        <div class="row article-content">
+            <div>@Html.Raw(Model.FullContent)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        window.addEventListener("popstate", function () {
+            window.location.reload();
+        });
+    })
+</script>

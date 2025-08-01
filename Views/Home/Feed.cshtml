@@ -22,8 +22,16 @@
                         </div>
                     </div>
                     <div class="col-lg-2">
-                        <button data-url="@Url.Action("article", "home", new { id = item.Id })"
-                            class="btn btn-primary article-link h-100 w-100">Read More</button>
+
+                        @if (item.FullContent == null || item.FullContent.Length < 500)
+                        {
+                            <a href="@item.Link" class="btn btn-primary h-100 w-100 d-flex justify-content-center align-items-center">Read More<br>(External)</a>
+                        }
+                        else
+                        {
+                            <button data-url="/article/@item.Id"
+                            class="btn btn-success article-link h-100 w-100 d-flex justify-content-center align-items-center">Read More</button>
+                        }
                     </div>
                 </div>
             </div>

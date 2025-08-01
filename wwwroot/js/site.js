@@ -66,13 +66,8 @@ function hideSpinner() {
     document.getElementById("main-spinner").classList.add("d-none");
 }
 
-
-function GetArticleHandler(e) {
-    showSpinner();
-
-    console.log("Get Handler Triggered");
-
-    const originalAction = e.currentTarget.getAttribute("data-url");
+function getArticle(originalAction, pushState = true) {
+    console.log("Get Article Triggered");
 
     fetch(originalAction, {
         method: "GET",
@@ -97,6 +92,7 @@ function GetArticleHandler(e) {
                 try {
                     document.getElementById("main-content").innerHTML = text;
                     bindArticles();
+                    if (pushState) { history.pushState(null, null, originalAction); }
                 }
                 catch (error) {
                     console.log(error);
@@ -116,6 +112,17 @@ function GetArticleHandler(e) {
             showToast("Error Loading Page", "There was an error loading the page, please try again", false);
             hideSpinner();
         });
+}
+
+function GetArticleHandler(e) {
+    showSpinner();
+
+    console.log("Get Handler Triggered");
+
+    const originalAction = e.currentTarget.getAttribute("data-url");
+
+    getArticle(originalAction);
+    
 }
 
 function bindArticles() {
@@ -212,6 +219,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!tab) {
             // Clear active state from all buttons
             tabButtons.forEach(btn => btn.classList.remove("active"));
+
+            // Check to see if we need an article
+            const pathname = this.window.location.pathname
+
+            if (pathname.toLowerCase().startsWith("/article")) {
+                // Replace main content with default message
+                getArticle();
+                return;
+            }
 
             // Replace main content with default message
             document.getElementById("main-content").innerHTML = `
