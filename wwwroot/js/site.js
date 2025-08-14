@@ -55,6 +55,7 @@ function PostSubmitHandler(e) {
         .then(() => {
             document.querySelector("button.active").remove();
             document.getElementById("main-content").innerHTML = '<div class="h-100 d-flex justify-content-center align-items-center"><p>Select a feed...</p></div>';
+            tabButtons = bindFeeds();
         })
         .then(() => {
             hideSpinner();
@@ -317,10 +318,12 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
             return;
         }
-
+        tabButtons = bindFeeds();
         const button = [...tabButtons].find(btn =>
             btn.getAttribute("data-url").includes(tab)
         );
+
+        console.log("Popstate\nTab: " + tab + "\nButton: " + button);
         if (button) {
             loadTab(button, tabButtons, false); // Don't push again during popstate
         }
