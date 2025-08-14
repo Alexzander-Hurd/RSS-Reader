@@ -120,6 +120,20 @@
                     console.log(responsetext);
                     const feed = JSON.parse(responsetext);
 
+                    if (feed == null) {
+                        showToast("Error", "An error occurred while adding the feed.", false);
+                        return;
+                    }
+
+                    if (feed.Success == false) {
+                        showToast(feed.Title, feed.Message, false);
+                        return;
+                    }
+                    if (feed.Success == true) {
+                        showToast(feed.Title, feed.Message, true);
+                        return;
+                    }
+
                     let feeds = document.getElementById("feeds");
                     let button = document.createElement("button");
 
