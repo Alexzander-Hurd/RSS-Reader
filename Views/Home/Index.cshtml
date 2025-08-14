@@ -145,6 +145,8 @@
 
                     showToast("Success", "Feed added successfully.", true);
 
+                    form.reset();
+
                     tabButtons = bindFeeds();
                 })
                 .catch(error => {
