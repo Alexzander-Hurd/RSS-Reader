@@ -21,6 +21,80 @@ function toTop() {
     document.documentElement.scrollTop = 0;
 }
 
+function PostSubmitHandler(e) {
+    showSpinner();
+    const form = this;
+    e.preventDefault();
+
+    let flag = false;
+
+    const validation = document.querySelectorAll("span.text-danger");
+    validation.forEach(span => {
+        if (span.textContent != "") {
+            showToast("Validation Error", span.textContent, false);
+            console.log("Validation Error");
+            flag = true;
+        }
+    });
+    if (flag) { hideSpinner(); return; }
+    console.log("Form Validated");
+    fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+        .then(response => response.json())
+        .then(data => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById("deleteModal"));
+            if (modal) modal.hide();
+
+            console.log(data);
+
+            showToast(data.Title, data.Message, data.success);
+        })
+        .then(() => {
+            document.querySelector("button.active").remove();
+            document.getElementById("main-content").innerHTML = '<div class="h-100 d-flex justify-content-center align-items-center"><p>Select a feed...</p></div>';
+        })
+        .then(() => {
+            hideSpinner();
+        })
+        .catch(error => {
+            console.log(error);
+            showToast("Error Loading Page", "There was an error loading the page, please try again", false);
+            hideSpinner();
+        });
+}
+
+function bindDeleteModalHandlers() {
+    console.log("Bind Delete Modal Handlers");
+    document.querySelectorAll("button.delete").forEach(button => {
+        console.log("Binding")
+        button.removeEventListener("click", openDeleteModalHandler); // remove duplicates
+        button.addEventListener("click", openDeleteModalHandler);
+    });
+}
+
+function bindFormHandlers() {
+    console.log("Bind Form Handlers");
+    document.querySelectorAll(".form").forEach(form => {
+        console.log("Binding")
+        form.removeEventListener("submit", PostSubmitHandler); // remove duplicates
+        form.addEventListener("submit", PostSubmitHandler);
+    });
+}
+
+
+function openDeleteModalHandler(e) {
+    const name = this.dataset.name;
+    const url = this.dataset.url;
+
+    console.log("Delete Modal Triggered\nName: " + name + "\nURL: " + url);
+
+    if (name) { document.getElementById("deleteName").textContent = name; }
+    document.getElementById("deleteForm").action = url;
+}
+
 function goBackOrRedirect(event, fallbackUrl) {
     event.preventDefault();
     console.log("goBackOrRedirect");
@@ -92,6 +166,8 @@ function getArticle(originalAction, pushState = true) {
                 try {
                     document.getElementById("main-content").innerHTML = text;
                     bindArticles();
+                    bindDeleteModalHandlers();
+                    bindFormHandlers()
                     if (pushState) { history.pushState(null, null, originalAction); }
                 }
                 catch (error) {
@@ -122,7 +198,6 @@ function GetArticleHandler(e) {
     const originalAction = e.currentTarget.getAttribute("data-url");
 
     getArticle(originalAction);
-    
 }
 
 function bindArticles() {
@@ -168,6 +243,8 @@ function loadTab(button, tabButtons, updateHistory = true) {
                 try {
                     document.getElementById("main-content").innerHTML = text;
                     bindArticles();
+                    bindDeleteModalHandlers();
+                    bindFormHandlers()
                     if (updateHistory) {
                         history.pushState(null, null, window.location.pathname + "?tab=" + tab);
                     }
@@ -211,6 +288,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     let tabButtons = bindFeeds();
+
+    bindDeleteModalHandlers();
+    bindFormHandlers()
 
     // Handle back/forward
     window.addEventListener("popstate", function () {

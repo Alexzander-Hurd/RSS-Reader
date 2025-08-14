@@ -217,6 +217,21 @@ public class HomeController : Controller
         }
     }
 
+    [HttpPost]
+    [Route("/deletefeed/{id}")]
+    public async Task<IActionResult> DeleteFeed(string id)
+    {
+        Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Id == id);
+        if (feed == null) return Json(new { Title = "Feed not found", Message = "The feed you requested could not be found.", Success = false });
+
+        Entry[] entries = await _context.Entries.Where(e => e.FeedId == id).ToArrayAsync();
+        _context.Entries.RemoveRange(entries);
+
+        _context.Feeds.Remove(feed);
+        await _context.SaveChangesAsync();
+        return Json(new { Title = "Feed deleted", Message = "The feed has been deleted.", Success = true });
+    }
+
     [HttpGet]
     [Route("/article/{id}")]
     public async Task<IActionResult> Article(string id)
