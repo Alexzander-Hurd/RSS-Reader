@@ -245,13 +245,51 @@ function loadTab(button, tabButtons, updateHistory = true) {
                     document.getElementById("main-content").innerHTML = text;
                     bindArticles();
                     bindDeleteModalHandlers();
-                    bindFormHandlers()
+                    bindFormHandlers();
+                    bindRefreshButtons();
                     if (updateHistory) {
                         history.pushState(null, null, window.location.pathname + "?tab=" + tab);
                     }
                     // Update tab UI
                     tabButtons.forEach(btn => btn.classList.remove("active"));
                     button.classList.add("active");
+                }
+                catch (error) {
+                    console.log(error);
+                    throw new Error(error);
+                }
+            }
+        })
+        .then(() => {
+            hideSpinner();
+        })
+        .catch(error => {
+            console.error(error);
+            showToast("Error Loading Page", "There was an error loading the page, please try again", false);
+            hideSpinner();
+        });
+}
+
+function refreshFeed(button) {
+    const url = button.getAttribute("data-url");
+    showSpinner();
+
+    fetch(url, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                json = JSON.parse(text);
+                showToast(json.Title, json.Message, json.success);
+            }
+            catch (error) {
+                try {
+                    document.getElementById("main-content").innerHTML = text;
+                    bindArticles();
+                    bindDeleteModalHandlers();
+                    bindFormHandlers()
+                    bindRefreshButtons();
                 }
                 catch (error) {
                     console.log(error);
@@ -285,13 +323,29 @@ function bindFeeds() {
     return tabButtons;
 }
 
+function bindRefreshButtons() {
+
+    console.log("Bind Refresh Buttons");
+    const refreshButtons = document.querySelectorAll(".refresh-button");
+    refreshButtons.forEach(button => {
+        console.log("Binding Refresh Button: " + button.getAttribute("data-url"));
+        button.removeEventListener("click", function () {
+            refreshFeed(this);
+        });
+        button.addEventListener("click", function () {
+            refreshFeed(this);
+        });
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
 
 
     let tabButtons = bindFeeds();
 
     bindDeleteModalHandlers();
-    bindFormHandlers()
+    bindFormHandlers();
+    bindRefreshButtons();
 
     // Handle back/forward
     window.addEventListener("popstate", function () {

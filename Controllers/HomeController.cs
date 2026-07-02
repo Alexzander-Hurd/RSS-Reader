@@ -1,13 +1,13 @@
 using System.Diagnostics;
+using System.Net;
+using System.ServiceModel.Syndication;
+using System.Xml;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RSS_Reader.Data;
+using RSS_Reader.Helpers;
 using RSS_Reader.Models;
 using RSS_Reader.Models.DataModels;
-using System.ServiceModel.Syndication;
-using System.Xml;
-using System.Net;
-using RSS_Reader.Helpers;
 
 namespace RSS_Reader.Controllers;
 
@@ -28,20 +28,26 @@ public class HomeController : Controller
         return View(feeds);
     }
 
-
     [HttpGet("/feed/{id}")]
     public async Task<IActionResult> Feed(string id)
     {
-        Feed? feed = await _context.Feeds.Include(f => f.Entries).FirstOrDefaultAsync(f => f.Id == id);
-        if (feed?.Link is not string url) return Json(new
-        {
-            Title = "Feed not found",
-            Message = "The feed you requested could not be found.",
-            Success = false
-        });
+        Feed? feed = await _context
+            .Feeds.Include(f => f.Entries)
+            .FirstOrDefaultAsync(f => f.Id == id);
+        if (feed?.Link is not string url)
+            return Json(
+                new
+                {
+                    Title = "Feed not found",
+                    Message = "The feed you requested could not be found.",
+                    Success = false,
+                }
+            );
 
         HttpClient client = new HttpClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("RSS-Reader/0.1 (+https://github.com/yourrepo)");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "RSS-Reader/0.1 (+https://github.com/yourrepo)"
+        );
         client.DefaultRequestHeaders.Accept.ParseAdd("application/rss+xml, application/xml");
         SyndicationFeed? feedXml = null;
         try
@@ -57,65 +63,78 @@ public class HomeController : Controller
                 switch (http.StatusCode)
                 {
                     case HttpStatusCode.NotFound:
-                        return Json(new
-                        {
-                            Title = "Feed not found",
-                            Message = "The feed you requested could not be found.",
-                            Success = false
-                        });
+                        return Json(
+                            new
+                            {
+                                Title = "Feed not found",
+                                Message = "The feed you requested could not be found.",
+                                Success = false,
+                            }
+                        );
                     case HttpStatusCode.Forbidden:
-                        return Json(new
-                        {
-                            Title = "Access denied",
-                            Message = "You do not have permission to access this feed.",
-                            Success = false
-                        });
+                        return Json(
+                            new
+                            {
+                                Title = "Access denied",
+                                Message = "You do not have permission to access this feed.",
+                                Success = false,
+                            }
+                        );
                     case HttpStatusCode.Unauthorized:
-                        return Json(new
-                        {
-                            Title = "Unauthorized",
-                            Message = "You are not authorized to access this feed.",
-                            Success = false
-                        });
+                        return Json(
+                            new
+                            {
+                                Title = "Unauthorized",
+                                Message = "You are not authorized to access this feed.",
+                                Success = false,
+                            }
+                        );
                     default:
-                        return Json(new
-                        {
-                            Title = "Error loading feed",
-                            Message = "There was an error loading the feed.",
-                            Success = false
-                        });
+                        return Json(
+                            new
+                            {
+                                Title = "Error loading feed",
+                                Message = "There was an error loading the feed.",
+                                Success = false,
+                            }
+                        );
                 }
             }
             else
             {
-                return Json(new
-                {
-                    Title = "Error loading feed",
-                    Message = "There was an error loading the feed.",
-                    Success = false
-                });
+                return Json(
+                    new
+                    {
+                        Title = "Error loading feed",
+                        Message = "There was an error loading the feed.",
+                        Success = false,
+                    }
+                );
             }
         }
         catch (Exception)
         {
-            return Json(new
-            {
-                Title = "Error loading feed",
-                Message = "There was an error loading the feed.",
-                Success = false
-            });
+            return Json(
+                new
+                {
+                    Title = "Error loading feed",
+                    Message = "There was an error loading the feed.",
+                    Success = false,
+                }
+            );
         }
 
+        if (feedXml == null)
+            return Json(
+                new
+                {
+                    Title = "Feed not found",
+                    Message = "The feed you requested could not be found.",
+                    Success = false,
+                }
+            );
 
-        if (feedXml == null) return Json(new
-        {
-            Title = "Feed not found",
-            Message = "The feed you requested could not be found.",
-            Success = false
-        });
-
-        feed.Description = feedXml.Description.Text ?? "";
-
+        feed.Description = feedXml.Description?.Text ?? "";
 
         List<Entry> entries = feed.Entries ?? new List<Entry>();
         foreach (SyndicationItem item in feedXml.Items)
@@ -126,7 +145,8 @@ public class HomeController : Controller
 
             if (string.IsNullOrEmpty(guid))
             {
-                if (string.IsNullOrEmpty(link)) continue;
+                if (string.IsNullOrEmpty(link))
+                    continue;
                 entry = entries.FirstOrDefault(e => e.Link == link);
             }
             else
@@ -136,9 +156,9 @@ public class HomeController : Controller
 
             if (entry == null)
             {
-                string? contentEncoded = item.ElementExtensions
-                    .FirstOrDefault(e => e.OuterName == "encoded")?
-                    .GetObject<string>();
+                string? contentEncoded = item
+                    .ElementExtensions.FirstOrDefault(e => e.OuterName == "encoded")
+                    ?.GetObject<string>();
 
                 string? atomContent = item.Content is TextSyndicationContent content
                     ? content.Text
@@ -150,30 +170,49 @@ public class HomeController : Controller
 
                 string? FullContent = "";
 
-                if (!string.IsNullOrEmpty(contentEncoded)) FullContent = contentEncoded;
-                else if (!string.IsNullOrEmpty(atomContent) && atomContent != summary && atomContent.Length > summary?.Length) FullContent = atomContent;
+                if (!string.IsNullOrEmpty(contentEncoded))
+                    FullContent = contentEncoded;
+                else if (
+                    !string.IsNullOrEmpty(atomContent)
+                    && atomContent != summary
+                    && atomContent.Length > summary?.Length
+                )
+                    FullContent = atomContent;
                 if (!string.IsNullOrEmpty(summary))
                 {
-                    if (string.IsNullOrEmpty(FullContent) && string.IsNullOrEmpty(atomContent) && summary.Length > 1000) FullContent = summary;
+                    if (
+                        string.IsNullOrEmpty(FullContent)
+                        && string.IsNullOrEmpty(atomContent)
+                        && summary.Length > 1000
+                    )
+                        FullContent = summary;
 
                     summary = HtmlUtils.RemoveHtmlTags(summary);
-                    if (summary.Length > 300) summary = summary.Substring(0, 300) + "..."; // Truncate long summaries
+                    if (summary.Length > 300)
+                        summary = summary.Substring(0, 300) + "..."; // Truncate long summaries
                 }
 
+                DateTime pubDate =
+                    item.PublishDate.UtcDateTime == default
+                        ? DateTime.UtcNow
+                        : item.PublishDate.UtcDateTime;
 
+                DateTime? updatedDate =
+                    item.LastUpdatedTime.UtcDateTime == default
+                        ? pubDate
+                        : item.LastUpdatedTime.UtcDateTime;
 
                 entry = new Entry()
                 {
                     Id = Guid.NewGuid().ToString(),
                     FeedId = id,
-                    Title = item.Title.Text,
-                    PubDate = item.PublishDate.UtcDateTime == default ? DateTime.UtcNow : item.PublishDate.UtcDateTime,
+                    Title = item.Title?.Text ?? "Untitled",
+                    PubDate = updatedDate,
                     Link = link ?? "",
                     Description = summary ?? "",
                     FullContent = FullContent,
-                    Guid = guid
+                    Guid = guid,
                 };
-                _context.Entries.Add(entry);
                 entries.Add(entry);
             }
         }
@@ -199,7 +238,7 @@ public class HomeController : Controller
                     Id = Guid.NewGuid().ToString(),
                     Title = title,
                     Link = url,
-                    Entries = new List<Entry>()
+                    Entries = new List<Entry>(),
                 };
                 _context.Feeds.Add(feed);
                 await _context.SaveChangesAsync();
@@ -208,12 +247,26 @@ public class HomeController : Controller
             }
             else
             {
-                return Json(new { Title = "Feed already exists", Message = "The feed already exists in the database", Success = false });
+                return Json(
+                    new
+                    {
+                        Title = "Feed already exists",
+                        Message = "The feed already exists in the database",
+                        Success = false,
+                    }
+                );
             }
         }
         catch (System.Exception)
         {
-            return Json(new { Title = "Error adding feed", Message = "Failed to add feed to the database", Success = false });
+            return Json(
+                new
+                {
+                    Title = "Error adding feed",
+                    Message = "Failed to add feed to the database",
+                    Success = false,
+                }
+            );
         }
     }
 
@@ -222,14 +275,29 @@ public class HomeController : Controller
     public async Task<IActionResult> DeleteFeed(string id)
     {
         Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Id == id);
-        if (feed == null) return Json(new { Title = "Feed not found", Message = "The feed you requested could not be found.", Success = false });
+        if (feed == null)
+            return Json(
+                new
+                {
+                    Title = "Feed not found",
+                    Message = "The feed you requested could not be found.",
+                    Success = false,
+                }
+            );
 
         Entry[] entries = await _context.Entries.Where(e => e.FeedId == id).ToArrayAsync();
         _context.Entries.RemoveRange(entries);
 
         _context.Feeds.Remove(feed);
         await _context.SaveChangesAsync();
-        return Json(new { Title = "Feed deleted", Message = "The feed has been deleted.", Success = true });
+        return Json(
+            new
+            {
+                Title = "Feed deleted",
+                Message = "The feed has been deleted.",
+                Success = true,
+            }
+        );
     }
 
     [HttpGet]
@@ -237,10 +305,19 @@ public class HomeController : Controller
     public async Task<IActionResult> Article(string id)
     {
         Entry? entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == id);
-        if (entry == null) return Json(new { Title = "Article not found", Message = "The article you requested could not be found.", Success = false });
+        if (entry == null)
+            return Json(
+                new
+                {
+                    Title = "Article not found",
+                    Message = "The article you requested could not be found.",
+                    Success = false,
+                }
+            );
         ViewBag.standalone = false;
 
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") return PartialView(entry);
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return PartialView(entry);
         ViewBag.standalone = true;
         return View(entry);
     }
@@ -248,13 +325,17 @@ public class HomeController : Controller
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
-
-        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest") return Json(new
-        {
-            Title = "Error loading page",
-            Message = "There was an error loading the page, please try again",
-            Success = false
-        });
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Json(
+                new
+                {
+                    Title = "Error loading page",
+                    Message = "There was an error loading the page, please try again",
+                    Success = false,
+                }
+            );
+        return View(
+            new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }
+        );
     }
 }
