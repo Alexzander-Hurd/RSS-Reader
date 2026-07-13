@@ -15,7 +15,7 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 - [x] Fetch and parse RSS feeds using `System.ServiceModel.Syndication`
 - [x] Store feed metadata and entries in a local DB (SQLite)
 - [x] Display title, publish date, and summary/content
-- [x] Manual refresh + background polling via `IHostedService`
+- [x] Manual refresh
 - [x] Read/unread entry tracking
 - [x] Responsive UI using Bootstrap 5
 
