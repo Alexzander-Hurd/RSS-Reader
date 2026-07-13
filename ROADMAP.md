@@ -26,10 +26,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Add ability to fetch and display feeds provided in JSON format (e.g., JSONFeed.org).
 
 ### Features
-- [ ] Add support for reading JSON-based feeds with standard schema
-- [ ] Store & display JSON entries with same UI structure as RSS
+- [x] Add support for reading JSON-based feeds with standard schema
+- [x] Store & display JSON entries with same UI structure as RSS
 - [ ] Manually configure feed URL and static field mappings
-- [ ] Use shared data model to unify parsing logic
+- [x] Use shared data model to unify parsing logic
 
 ---
 

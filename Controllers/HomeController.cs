@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.ServiceModel.Syndication;
 using System.Xml;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +7,7 @@ using RSS_Reader.Data;
 using RSS_Reader.Helpers;
 using RSS_Reader.Models;
 using RSS_Reader.Models.DataModels;
+using RSS_Reader.Services;
 
 namespace RSS_Reader.Controllers;
 
@@ -15,11 +15,16 @@ public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly FeedParserService _parserService;
 
-    public HomeController(ILogger<HomeController> logger, ApplicationDbContext context)
+    public HomeController(ILogger<HomeController> logger, ApplicationDbContext context,
+        IHttpClientFactory httpClientFactory, FeedParserService parserService)
     {
         _logger = logger;
         _context = context;
+        _httpClientFactory = httpClientFactory;
+        _parserService = parserService;
     }
 
     public async Task<IActionResult> Index()
@@ -52,17 +57,22 @@ public class HomeController : Controller
                 }
             );
 
-        HttpClient client = new HttpClient();
+        // Determine feed type from stored value (or Unknown if null)
+        FeedType feedType = DetermineFeedType(feed.FeedType);
+
+        // Fetch the feed content
+        HttpClient client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             "RSS-Reader/0.1 (+https://github.com/yourrepo)"
         );
-        client.DefaultRequestHeaders.Accept.ParseAdd("application/rss+xml, application/xml");
-        SyndicationFeed? feedXml = null;
+
+        if (feedType != FeedType.Unknown)
+            ConfigureAcceptHeaders(client, feedType);
+
+        HttpResponseMessage response;
         try
         {
-            using Stream stream = await client.GetStreamAsync(url);
-            using XmlReader reader = XmlReader.Create(stream);
-            feedXml = SyndicationFeed.Load(reader);
+            response = await client.GetAsync(url);
         }
         catch (HttpRequestException http)
         {
@@ -71,172 +81,88 @@ public class HomeController : Controller
                 switch (http.StatusCode)
                 {
                     case HttpStatusCode.NotFound:
-                        return Json(
-                            new
-                            {
-                                Title = "Feed not found",
-                                Message = "The feed you requested could not be found.",
-                                Success = false,
-                            }
-                        );
+                        return Json(new { Title = "Feed not found", Message = "The feed you requested could not be found.", Success = false });
                     case HttpStatusCode.Forbidden:
-                        return Json(
-                            new
-                            {
-                                Title = "Access denied",
-                                Message = "You do not have permission to access this feed.",
-                                Success = false,
-                            }
-                        );
+                        return Json(new { Title = "Access denied", Message = "You do not have permission to access this feed.", Success = false });
                     case HttpStatusCode.Unauthorized:
-                        return Json(
-                            new
-                            {
-                                Title = "Unauthorized",
-                                Message = "You are not authorized to access this feed.",
-                                Success = false,
-                            }
-                        );
+                        return Json(new { Title = "Unauthorized", Message = "You are not authorized to access this feed.", Success = false });
                     default:
-                        return Json(
-                            new
-                            {
-                                Title = "Error loading feed",
-                                Message = "There was an error loading the feed.",
-                                Success = false,
-                            }
-                        );
+                        return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
                 }
             }
-            else
-            {
-                return Json(
-                    new
-                    {
-                        Title = "Error loading feed",
-                        Message = "There was an error loading the feed.",
-                        Success = false,
-                    }
-                );
-            }
+            return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
         }
         catch (Exception)
         {
-            return Json(
-                new
-                {
-                    Title = "Error loading feed",
-                    Message = "There was an error loading the feed.",
-                    Success = false,
-                }
-            );
+            return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
         }
 
-        if (feedXml == null)
-            return Json(
-                new
-                {
-                    Title = "Feed not found",
-                    Message = "The feed you requested could not be found.",
-                    Success = false,
-                }
-            );
-
-        feed.Description = feedXml.Description?.Text ?? "";
-
-        List<Entry> entries = feed.Entries ?? new List<Entry>();
-        foreach (SyndicationItem item in feedXml.Items)
+        // Auto-detect feed type from Content-Type if still Unknown
+        if (feedType == FeedType.Unknown)
         {
-            string? link = item.Links.FirstOrDefault()?.Uri.ToString();
-            string? guid = item.Id;
-            Entry? entry = null;
+            feedType = DetectFeedType(response.Content.Headers.ContentType?.MediaType);
+            feed.FeedType = feedType.ToString();
+        }
 
-            if (string.IsNullOrEmpty(guid))
+        // Parse the feed content
+        IFeedParser? parser = _parserService.GetParser(feedType);
+        if (parser == null)
+        {
+            _logger.LogWarning("No parser found for feed type {FeedType} (feed: {Id})", feedType, id);
+            return Json(new { Title = "Unsupported feed type", Message = "This feed type is not supported.", Success = false });
+        }
+
+        ParsedFeed parsed;
+        try
+        {
+            using Stream stream = await response.Content.ReadAsStreamAsync();
+            parsed = await parser.ParseAsync(stream);
+        }
+        catch (JsonFeedFormatException jfEx)
+        {
+            return Json(new { Title = "Unsupported JSON format", Message = jfEx.Message, Success = false });
+        }
+        catch (XmlException)
+        {
+            return Json(new { Title = "Feed not parseable", Message = "The feed URL returned content that could not be parsed as XML.", Success = false });
+        }
+        catch (FormatException)
+        {
+            return Json(new { Title = "Feed not parseable", Message = "The feed URL returned content in an unexpected format.", Success = false });
+        }
+
+        // Update feed metadata
+        if (!string.IsNullOrEmpty(parsed.Title) && string.IsNullOrEmpty(feed.Title))
+            feed.Title = parsed.Title;
+        feed.Description = parsed.Description ?? feed.Description;
+
+        // Merge parsed entries with existing (dedup by Guid then Link)
+        List<Entry> entries = feed.Entries ?? new List<Entry>();
+        foreach (var parsedEntry in parsed.Entries)
+        {
+            if (string.IsNullOrEmpty(parsedEntry.Guid) && string.IsNullOrEmpty(parsedEntry.Link))
+                continue;
+
+            Entry? existing = FindExistingEntry(entries, parsedEntry);
+            if (existing == null)
             {
-                if (string.IsNullOrEmpty(link))
-                    continue;
-                entry = entries.FirstOrDefault(e => e.Link == link);
-            }
-            else
-            {
-                entry = entries.FirstOrDefault(e => e.Guid == guid);
-            }
-
-            if (entry == null)
-            {
-                string? contentEncoded = item
-                    .ElementExtensions.FirstOrDefault(e => e.OuterName == "encoded")
-                    ?.GetObject<string>();
-
-                string? atomContent = item.Content is TextSyndicationContent content
-                    ? content.Text
-                    : null;
-
-                string? summary = item.Summary is TextSyndicationContent summaryContent
-                    ? summaryContent.Text
-                    : null;
-
-                string? FullContent = "";
-
-                if (!string.IsNullOrEmpty(contentEncoded))
-                    FullContent = contentEncoded;
-                else if (
-                    !string.IsNullOrEmpty(atomContent)
-                    && atomContent != summary
-                    && atomContent.Length > summary?.Length
-                )
-                    FullContent = atomContent;
-                if (!string.IsNullOrEmpty(summary))
-                {
-                    if (
-                        string.IsNullOrEmpty(FullContent)
-                        && string.IsNullOrEmpty(atomContent)
-                        && summary.Length > 1000
-                    )
-                        FullContent = summary;
-
-                    summary = HtmlUtils.RemoveHtmlTags(summary);
-                    if (summary.Length > 300)
-                        summary = summary.Substring(0, 300) + "..."; // Truncate long summaries
-                }
-
-                DateTime pubDate =
-                    item.PublishDate.UtcDateTime == default
-                        ? DateTime.UtcNow
-                        : item.PublishDate.UtcDateTime;
-
-                DateTime? updatedDate =
-                    item.LastUpdatedTime.UtcDateTime == default
-                        ? pubDate
-                        : item.LastUpdatedTime.UtcDateTime;
-
-                entry = new Entry()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    FeedId = id,
-                    Title = item.Title?.Text ?? "Untitled",
-                    PubDate = updatedDate,
-                    Link = link ?? "",
-                    Description = summary ?? "",
-                    FullContent = FullContent,
-                    Guid = guid,
-                };
-                entries.Add(entry);
+                entries.Add(CreateEntryFromParsed(feed.Id, parsedEntry));
             }
         }
 
         feed.Entries = entries.OrderByDescending(e => e.PubDate).ToList();
         _context.Feeds.Update(feed);
         await _context.SaveChangesAsync();
+
         return PartialView(feed);
     }
 
     [HttpPost("/addfeed")]
-    public async Task<IActionResult> AddFeed(string title, string url)
+    public async Task<IActionResult> AddFeed(string title, string url, string? feedType = null)
     {
         try
         {
-            _logger.LogInformation($"Adding feed {title} with url {url}");
+            _logger.LogInformation("Adding feed {Title} with url {Url} (type: {FeedType})", title, url, feedType ?? "auto");
 
             Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Link == url);
             if (feed == null)
@@ -246,6 +172,7 @@ public class HomeController : Controller
                     Id = Guid.NewGuid().ToString(),
                     Title = title,
                     Link = url,
+                    FeedType = string.IsNullOrWhiteSpace(feedType) ? null : feedType,
                     Entries = new List<Entry>(),
                 };
                 _context.Feeds.Add(feed);
@@ -382,5 +309,91 @@ public class HomeController : Controller
         return View(
             new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }
         );
+    }
+
+    // --- Private helpers ---
+
+    private static FeedType DetermineFeedType(string? storedType)
+    {
+        if (string.IsNullOrEmpty(storedType))
+            return FeedType.Unknown;
+
+        if (Enum.TryParse<FeedType>(storedType, ignoreCase: true, out var parsed))
+            return parsed;
+
+        return FeedType.Unknown;
+    }
+
+    private static FeedType DetectFeedType(string? mediaType)
+    {
+        if (string.IsNullOrEmpty(mediaType))
+            return FeedType.Unknown;
+
+        // Common RSS/XML media types
+        if (mediaType.Contains("xml") || mediaType.Contains("rss") || mediaType.Contains("atom"))
+            return FeedType.Rss;
+
+        // JSON media types
+        if (mediaType.Contains("json") || mediaType.Contains("feed+json"))
+            return FeedType.JsonFeed;
+
+        return FeedType.Unknown;
+    }
+
+    private static void ConfigureAcceptHeaders(HttpClient client, FeedType feedType)
+    {
+        switch (feedType)
+        {
+            case FeedType.Rss:
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/rss+xml, application/xml");
+                break;
+            case FeedType.JsonFeed:
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/json, application/feed+json");
+                break;
+        }
+    }
+
+    private static Entry? FindExistingEntry(List<Entry> entries, ParsedEntry parsed)
+    {
+        // Try matching by Guid first
+        if (!string.IsNullOrEmpty(parsed.Guid))
+        {
+            var match = entries.FirstOrDefault(e => e.Guid == parsed.Guid);
+            if (match != null)
+                return match;
+        }
+
+        // Fallback to Link
+        if (!string.IsNullOrEmpty(parsed.Link))
+        {
+            var match = entries.FirstOrDefault(e => e.Link == parsed.Link);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    private static Entry CreateEntryFromParsed(string feedId, ParsedEntry parsed)
+    {
+        string? description = null;
+        if (!string.IsNullOrEmpty(parsed.Description))
+        {
+            description = HtmlUtils.RemoveHtmlTags(parsed.Description);
+            if (description.Length > 300)
+                description = description[..300] + "...";
+        }
+
+        return new Entry
+        {
+            Id = Guid.NewGuid().ToString(),
+            FeedId = feedId,
+            Title = parsed.Title ?? "Untitled",
+            PubDate = parsed.PubDate,
+            Link = parsed.Link ?? "",
+            Description = description ?? "",
+            FullContent = parsed.FullContent ?? "",
+            Guid = parsed.Guid,
+        };
     }
 }

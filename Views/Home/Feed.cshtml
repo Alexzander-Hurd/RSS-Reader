@@ -7,7 +7,13 @@
 <div class="d-md-flex flex-col align-items-center justify-content-around">
     <div class="d-flex flex-column col-md-6 align-items-center justify-content-center">
         <div class="row" style="width: 100%;">
-            <h2 class="text-center">@Model.Title</h2>
+            <h2 class="text-center">
+                @Model.Title
+                @if (!string.IsNullOrEmpty(Model.FeedType))
+                {
+                    <span class="badge bg-secondary ms-2 align-middle" style="font-size: 0.6em;">@Model.FeedType</span>
+                }
+            </h2>
         </div>
         <div class="row" style="width: 100%;">
             <p class="text-center">@Model.Description</p>

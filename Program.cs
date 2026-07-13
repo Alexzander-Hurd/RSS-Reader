@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RSS_Reader.Data;
+using RSS_Reader.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,10 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IFeedParser, RssFeedParser>();
+builder.Services.AddSingleton<IFeedParser, JsonFeedParser>();
+builder.Services.AddSingleton<FeedParserService>();
 
 builder
     .Services.AddControllers()
