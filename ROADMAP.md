@@ -16,7 +16,7 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 - [x] Store feed metadata and entries in a local DB (SQLite)
 - [x] Display title, publish date, and summary/content
 - [x] Manual refresh + background polling via `IHostedService`
-- [ ] Read/unread entry tracking
+- [x] Read/unread entry tracking
 - [x] Responsive UI using Bootstrap 5
 
 ---
