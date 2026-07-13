@@ -247,6 +247,9 @@ function loadTab(button, tabButtons, updateHistory = true) {
                     bindDeleteModalHandlers();
                     bindFormHandlers();
                     bindRefreshButtons();
+                    bindReadToggles();
+                    bindExternalReadButtons();
+                    bindMarkAllRead();
                     if (updateHistory) {
                         history.pushState(null, null, window.location.pathname + "?tab=" + tab);
                     }
@@ -290,6 +293,9 @@ function refreshFeed(button) {
                     bindDeleteModalHandlers();
                     bindFormHandlers()
                     bindRefreshButtons();
+                    bindReadToggles();
+                    bindExternalReadButtons();
+                    bindMarkAllRead();
                 }
                 catch (error) {
                     console.log(error);
@@ -338,6 +344,186 @@ function bindRefreshButtons() {
     });
 }
 
+// --- Read/Unread tracking ---
+
+function toggleRead(entryId, button) {
+    fetch(`/article/${entryId}/read`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const newIsRead = data.isRead;
+            button.dataset.isRead = newIsRead.toString();
+            button.title = newIsRead ? 'Mark unread' : 'Mark read';
+            button.innerHTML = newIsRead ? '◉' : '○';
+
+            const card = button.closest('.card');
+            if (card) {
+                card.classList.toggle('card-read', newIsRead);
+                card.classList.toggle('card-unread', !newIsRead);
+                const title = card.querySelector('.card-title');
+                if (title) {
+                    title.classList.toggle('fw-bold', !newIsRead);
+                }
+            }
+
+            const feedId = getCurrentFeedId();
+            if (feedId) {
+                updateUnreadBadge(feedId, newIsRead ? -1 : 1);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Toggle read error:', error);
+    });
+}
+
+function handleExternalRead(button) {
+    const entryId = button.dataset.entryId;
+    const externalUrl = button.dataset.externalUrl;
+
+    if (!entryId || !externalUrl) return;
+
+    fetch(`/article/${entryId}/read`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Update card styling
+            const card = button.closest('.card');
+            if (card) {
+                card.classList.remove('card-unread');
+                card.classList.add('card-read');
+                const title = card.querySelector('.card-title');
+                if (title) title.classList.remove('fw-bold');
+                const toggleBtn = card.querySelector('.read-toggle');
+                if (toggleBtn) {
+                    toggleBtn.dataset.isRead = 'true';
+                    toggleBtn.title = 'Mark unread';
+                    toggleBtn.innerHTML = '◉';
+                }
+            }
+
+            // Update feed badge
+            const feedId = getCurrentFeedId();
+            if (feedId) {
+                updateUnreadBadge(feedId, -1);
+            }
+
+            // Open external URL
+            window.open(externalUrl, '_blank');
+        }
+    })
+    .catch(error => {
+        console.error('External read error:', error);
+    });
+}
+
+function markAllRead(feedId) {
+    if (!feedId) return;
+
+    fetch(`/feed/${feedId}/read`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Visually mark all cards as read
+            document.querySelectorAll('.card-unread').forEach(card => {
+                card.classList.remove('card-unread');
+                card.classList.add('card-read');
+                const title = card.querySelector('.card-title');
+                if (title) title.classList.remove('fw-bold');
+            });
+
+            // Reset all toggle buttons
+            document.querySelectorAll('.read-toggle').forEach(btn => {
+                btn.dataset.isRead = 'true';
+                btn.title = 'Mark unread';
+                btn.innerHTML = '◉';
+            });
+
+            // Zero the badge
+            setUnreadBadge(feedId, 0);
+
+            showToast('Marked All Read', data.count + ' article(s) marked as read.', true);
+        }
+    })
+    .catch(error => {
+        console.error('Mark all read error:', error);
+    });
+}
+
+function getCurrentFeedId() {
+    const activeButton = document.querySelector('button.active[data-url]');
+    if (activeButton) {
+        const url = activeButton.getAttribute('data-url');
+        const parts = url.split('/');
+        return parts[parts.length - 1];
+    }
+    return null;
+}
+
+function updateUnreadBadge(feedId, delta) {
+    const badge = document.querySelector('.unread-badge[data-feed-id="' + feedId + '"]');
+    if (!badge) return;
+
+    const current = parseInt(badge.textContent) || 0;
+    const newCount = Math.max(0, current + delta);
+    badge.textContent = newCount;
+    badge.classList.toggle('d-none', newCount === 0);
+}
+
+function setUnreadBadge(feedId, count) {
+    const badge = document.querySelector('.unread-badge[data-feed-id="' + feedId + '"]');
+    if (!badge) return;
+
+    badge.textContent = count;
+    badge.classList.toggle('d-none', count === 0);
+}
+
+function bindReadToggles() {
+    document.querySelectorAll('.read-toggle').forEach(button => {
+        button.removeEventListener('click', readToggleClickHandler);
+        button.addEventListener('click', readToggleClickHandler);
+    });
+}
+
+function readToggleClickHandler() {
+    const entryId = this.dataset.entryId;
+    if (entryId) {
+        toggleRead(entryId, this);
+    }
+}
+
+function bindExternalReadButtons() {
+    document.querySelectorAll('.external-read').forEach(button => {
+        button.removeEventListener('click', externalReadClickHandler);
+        button.addEventListener('click', externalReadClickHandler);
+    });
+}
+
+function externalReadClickHandler() {
+    handleExternalRead(this);
+}
+
+function bindMarkAllRead() {
+    document.querySelectorAll('.mark-all-read').forEach(button => {
+        button.removeEventListener('click', markAllReadClickHandler);
+        button.addEventListener('click', markAllReadClickHandler);
+    });
+}
+
+function markAllReadClickHandler() {
+    const feedId = this.dataset.feedId;
+    markAllRead(feedId);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
 
 
@@ -346,6 +532,9 @@ document.addEventListener("DOMContentLoaded", function () {
     bindDeleteModalHandlers();
     bindFormHandlers();
     bindRefreshButtons();
+    bindReadToggles();
+    bindExternalReadButtons();
+    bindMarkAllRead();
 
     // Handle back/forward
     window.addEventListener("popstate", function () {

@@ -13,4 +13,5 @@ public class Entry
     public string? Description { get; set; }
     public string? FullContent { get; set; }
     public string? Guid { get; set; }
+    public bool IsRead { get; set; } = false;
 }

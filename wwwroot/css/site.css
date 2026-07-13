@@ -35,3 +35,18 @@ body {
     align-items: center;
     justify-content: center;
 }
+
+/* Read/unread card styling */
+.card-unread {
+    border-left: 4px solid var(--bs-primary);
+}
+
+.card-read {
+    opacity: 0.75;
+}
+
+.read-toggle {
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+}

@@ -15,9 +15,16 @@
             <div id="feed-list" class="nav flex-column nav-pills gap-2">
                 <h4 class="text-center">Feeds</h4>
                 <div id="feeds" class="nav flex-column nav-pills gap-2">
+                    @{
+                        var unreadCounts = ViewBag.UnreadCounts as Dictionary<string, int> ?? new Dictionary<string, int>();
+                    }
                     @foreach (var feed in Model ?? new List<Feed>())
                     {
-                        <button class="nav-link text-start" data-url="/feed/@feed.Id">@feed.Title</button>
+                        int count = unreadCounts.GetValueOrDefault(feed.Id, 0);
+                        <button class="nav-link text-start d-flex justify-content-between align-items-center" data-url="/feed/@feed.Id">
+                            <span>@feed.Title</span>
+                            <span class="badge bg-primary rounded-pill @(count == 0 ? "d-none" : "") unread-badge" data-feed-id="@feed.Id">@count</span>
+                        </button>
                     }
                 </div>
                 <hr class="my-2" />

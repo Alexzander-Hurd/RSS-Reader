@@ -25,6 +25,14 @@ public class HomeController : Controller
     public async Task<IActionResult> Index()
     {
         List<Feed>? feeds = await _context.Feeds.ToListAsync();
+
+        Dictionary<string, int> unreadCounts = await _context
+            .Entries.Where(e => !e.IsRead)
+            .GroupBy(e => e.FeedId)
+            .Select(g => new { FeedId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.FeedId, x => x.Count);
+        ViewBag.UnreadCounts = unreadCounts;
+
         return View(feeds);
     }
 
@@ -314,12 +322,49 @@ public class HomeController : Controller
                     Success = false,
                 }
             );
+
+        // Auto-mark as read when viewed
+        if (!entry.IsRead)
+        {
+            entry.IsRead = true;
+            await _context.SaveChangesAsync();
+        }
+
         ViewBag.standalone = false;
 
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             return PartialView(entry);
         ViewBag.standalone = true;
         return View(entry);
+    }
+
+    [HttpPost]
+    [Route("/article/{id}/read")]
+    public async Task<IActionResult> ToggleRead(string id)
+    {
+        Entry? entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == id);
+        if (entry == null)
+            return Json(new { success = false, message = "Article not found." });
+
+        entry.IsRead = !entry.IsRead;
+        await _context.SaveChangesAsync();
+
+        return Json(new { success = true, isRead = entry.IsRead });
+    }
+
+    [HttpPost]
+    [Route("/feed/{id}/read")]
+    public async Task<IActionResult> MarkAllRead(string id)
+    {
+        Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Id == id);
+        if (feed == null)
+            return Json(new { success = false, message = "Feed not found." });
+
+        int count = await _context
+            .Entries.Where(e => e.FeedId == id && !e.IsRead)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(e => e.IsRead, true));
+
+        return Json(new { success = true, count });
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
