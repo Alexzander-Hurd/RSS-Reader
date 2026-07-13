@@ -426,32 +426,20 @@ function handleExternalRead(button) {
 function markAllRead(feedId) {
     if (!feedId) return;
 
-    fetch(`/feed/${feedId}/read`, {
+    fetch('/feed/' + feedId + '/read', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Visually mark all cards as read
-            document.querySelectorAll('.card-unread').forEach(card => {
-                card.classList.remove('card-unread');
-                card.classList.add('card-read');
-                const title = card.querySelector('.card-title');
-                if (title) title.classList.remove('fw-bold');
-            });
-
-            // Reset all toggle buttons
-            document.querySelectorAll('.read-toggle').forEach(btn => {
-                btn.dataset.isRead = 'true';
-                btn.title = 'Mark unread';
-                btn.innerHTML = '◉';
-            });
-
-            // Zero the badge
+            // Zero the sidebar badge
             setUnreadBadge(feedId, 0);
 
             showToast('Marked All Read', data.count + ' article(s) marked as read.', true);
+
+            // Re-fetch the current filtered view
+            loadFilteredFeed(1);
         }
     })
     .catch(error => {
@@ -523,6 +511,70 @@ function markAllReadClickHandler() {
     const feedId = this.dataset.feedId;
     markAllRead(feedId);
 }
+
+// --- Feed controls (search, filter, sort, pagination) ---
+// Uses event delegation on document so controls work when loaded via AJAX
+
+function loadFilteredFeed(page) {
+    const feedId = getCurrentFeedId();
+    if (!feedId) return;
+
+    const q = document.getElementById('feed-search')?.value;
+    const sortBy = document.getElementById('feed-sort')?.value;
+    const filterBy = document.getElementById('feed-filter')?.value;
+    const perPage = document.getElementById('feed-perpage')?.value;
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (sortBy && sortBy !== 'newest') params.set('sort_by', sortBy);
+    if (filterBy && filterBy !== 'all') params.set('filter_by', filterBy);
+    params.set('page', page);
+    if (perPage && parseInt(perPage) !== 20) params.set('per_page', perPage);
+
+    const queryStr = params.toString();
+    const url = '/feed/' + feedId + (queryStr ? '?' + queryStr : '');
+
+    showSpinner();
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-Feed-Partial': 'entries'
+        }
+    })
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('feed-entries-container').innerHTML = html;
+            bindArticles();
+            bindReadToggles();
+            bindExternalReadButtons();
+        })
+        .catch(error => {
+            console.error('Feed load error:', error);
+            showToast('Error', 'Failed to load feed content.', false);
+        })
+        .finally(function () {
+            hideSpinner();
+        });
+}
+
+// Debounced search (300ms)
+let _feedSearchTimer;
+$(document).on('input', '#feed-search', function () {
+    clearTimeout(_feedSearchTimer);
+    _feedSearchTimer = setTimeout(function () { loadFilteredFeed(1); }, 1000);
+});
+
+// Immediate reload on dropdown change
+$(document).on('change', '#feed-sort, #feed-filter, #feed-perpage', function () {
+    loadFilteredFeed(1);
+});
+
+// Pagination link clicks
+$(document).on('click', '.page-link', function (e) {
+    e.preventDefault();
+    var page = $(this).data('page');
+    if (page) loadFilteredFeed(page);
+});
 
 document.addEventListener("DOMContentLoaded", function () {
 

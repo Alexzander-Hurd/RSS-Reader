@@ -1,100 +1,89 @@
 @using RSS_Reader.Models.DataModels
-@model Feed
+@using RSS_Reader.Models.ViewModels
+@model FeedViewModel
 @{
     ViewBag.Title = "Feed";
+    var isNewest = Model.SortBy == "newest";
+    var isOldest = Model.SortBy == "oldest";
+    var isAll = Model.FilterBy == "all";
+    var isUnread = Model.FilterBy == "unread";
+    var pp10 = Model.PerPage == 10;
+    var pp20 = Model.PerPage == 20;
+    var pp50 = Model.PerPage == 50;
 }
 
 <div class="d-md-flex flex-col align-items-center justify-content-around">
     <div class="d-flex flex-column col-md-6 align-items-center justify-content-center">
         <div class="row" style="width: 100%;">
             <h2 class="text-center">
-                @Model.Title
-                @if (!string.IsNullOrEmpty(Model.FeedType))
+                @Model.Feed.Title
+                @if (!string.IsNullOrEmpty(Model.Feed.FeedType))
                 {
-                    <span class="badge bg-secondary ms-2 align-middle" style="font-size: 0.6em;">@Model.FeedType</span>
+                    <span class="badge bg-secondary ms-2 align-middle" style="font-size: 0.6em;">@Model.Feed.FeedType</span>
                 }
             </h2>
         </div>
         <div class="row" style="width: 100%;">
-            <p class="text-center">@Model.Description</p>
+            <p class="text-center">@Model.Feed.Description</p>
         </div>
     </div>
     <div class="d-flex col-md-2 align-items-center justify-content-center">
-        <button class="btn btn-primary refresh-button align-self-center justify-self-center" data-url="/feed/@Model.Id">
+        <button class="btn btn-primary refresh-button align-self-center justify-self-center" data-url="/feed/@Model.Feed.Id">
             Refresh Feed
         </button>
     </div>
     <div class="d-flex col-md-2 align-items-center justify-content-center">
         <button class="btn btn-outline-primary mark-all-read align-self-center justify-self-center"
-                data-feed-id="@Model.Id">
+                data-feed-id="@Model.Feed.Id">
             Mark All Read
         </button>
     </div>
     <div class="d-flex col-md-2 align-items-center justify-content-center">
-        <button class="btn btn-danger delete align-self-center justify-self-center" data-url="/deletefeed/@Model.Id"
+        <button class="btn btn-danger delete align-self-center justify-self-center" data-url="/deletefeed/@Model.Feed.Id"
                 data-bs-toggle="modal" data-bs-target="#deleteModal">
             Delete Feed
         </button>
     </div>
 </div>
 
-@if (ViewBag.FeedError != null)
+@if (Model.FeedError != null)
 {
     <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
-        <strong>Error loading feed:</strong> @ViewBag.FeedError
+        <strong>Error loading feed:</strong> @Model.FeedError
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
+@* Search / Filter / Sort / Per-Page Controls *@
+<div class="row g-2 mb-3 mt-2 align-items-end">
+    <div class="col-md-4">
+        <input type="search" id="feed-search" class="form-control" placeholder="Search entries..."
+               value="@Model.Query">
+    </div>
+    <div class="col-md-3">
+        <select id="feed-sort" class="form-select">
+            <option value="newest" selected="@isNewest">Newest First</option>
+            <option value="oldest" selected="@isOldest">Oldest First</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select id="feed-filter" class="form-select">
+            <option value="all" selected="@isAll">All Entries</option>
+            <option value="unread" selected="@isUnread">Unread Only</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select id="feed-perpage" class="form-select">
+            <option value="10" selected="@pp10">10 / page</option>
+            <option value="20" selected="@pp20">20 / page</option>
+            <option value="50" selected="@pp50">50 / page</option>
+        </select>
+    </div>
+</div>
+
+@* Entries (replaced by AJAX on filter/search/page change) *@
 <div class="h-100 d-flex flex-column">
-    <div class="flex-grow-1 overflow-auto">
-        @if (Model.Entries != null && Model.Entries.Any())
-        {
-            @foreach (var item in Model.Entries)
-        {
-            <div class="card mt-2 @(item.IsRead ? "card-read" : "card-unread")" style="width: 100%;">
-                <div class="card-body d-lg-inline-flex justify-content-between">
-                    <div class="col-lg-10">
-                        <div class="row" style="width: 100%;">
-                            <h5 class="card-title @(item.IsRead ? "" : "fw-bold")">@item.Title</h5>
-                            <p class="card-text"><small class="text-muted">Last updated @item.PubDate</small></p>
-                        </div>
-                        <div class="row">
-                            <p class="card-text">@item.Description</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 d-flex flex-column gap-1">
-
-                        @* --- Toggle read/unread button --- *@
-                        <button class="btn btn-sm btn-outline-secondary read-toggle w-100" data-entry-id="@item.Id"
-                                data-is-read="@item.IsRead.ToString().ToLower()"
-                                title="@(item.IsRead ? "Mark unread" : "Mark read")">
-                            @(item.IsRead ? "◉" : "○")
-                        </button>
-
-                        @if (item.FullContent == null || item.FullContent.Length < 500)
-                        {
-                            <button data-entry-id="@item.Id" data-external-url="@item.Link"
-                                    class="btn btn-primary external-read h-100 w-100 d-flex justify-content-center align-items-center">
-                                Read More<br>(External)
-                            </button>
-                        }
-                        else
-                        {
-                            <button data-url="/article/@item.Id"
-                                    class="btn btn-success article-link h-100 w-100 d-flex justify-content-center align-items-center">Read
-                                More</button>
-                            }
-                        </div>
-                    </div>
-                </div>
-            }
-        }
-        else
-        {
-            <div class="d-flex justify-content-center align-items-center h-100">
-                <p class="text-muted">No entries available.</p>
-            </div>
-        }
+    <div id="feed-entries-container" class="flex-grow-1 overflow-auto">
+        @await Html.PartialAsync("_FeedEntries", Model)
     </div>
 </div>

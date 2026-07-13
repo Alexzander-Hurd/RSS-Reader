@@ -7,6 +7,7 @@ using RSS_Reader.Data;
 using RSS_Reader.Helpers;
 using RSS_Reader.Models;
 using RSS_Reader.Models.DataModels;
+using RSS_Reader.Models.ViewModels;
 using RSS_Reader.Services;
 
 namespace RSS_Reader.Controllers;
@@ -46,7 +47,14 @@ public class HomeController : Controller
     }
 
     [HttpGet("/feed/{id}")]
-    public async Task<IActionResult> Feed(string id)
+    public async Task<IActionResult> Feed(
+        string id,
+        string? q = null,
+        string? sort_by = null,
+        string? filter_by = null,
+        int page = 1,
+        int per_page = 20
+    )
     {
         Feed? feed = await _context
             .Feeds.Include(f => f.Entries)
@@ -61,112 +69,174 @@ public class HomeController : Controller
                 }
             );
 
-        // Determine feed type from stored value (or Unknown if null)
-        FeedType feedType = DetermineFeedType(feed.FeedType);
+        // Determine if this is a filter/search-only request (skip remote fetch)
+        bool isFilterRequest = !string.IsNullOrEmpty(q)
+            || !string.IsNullOrEmpty(filter_by)
+            || !string.IsNullOrEmpty(sort_by) && sort_by != "newest"
+            || page > 1
+            || per_page != 20;
 
-        // Fetch the feed content
-        HttpClient client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "RSS-Reader/0.1 (+https://github.com/yourrepo)"
-        );
+        string? feedError = null;
 
-        if (feedType != FeedType.Unknown)
-            ConfigureAcceptHeaders(client, feedType);
-
-        HttpResponseMessage response;
-        try
+        // ── Remote fetch (only when no filter params) ──
+        if (!isFilterRequest)
         {
-            response = await client.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-        }
-        catch (HttpRequestException http)
-        {
-            ViewBag.FeedError = http.StatusCode switch
-            {
-                HttpStatusCode.NotFound => "The feed URL returned a 404 Not Found error.",
-                HttpStatusCode.Forbidden => "Access denied (403 Forbidden).",
-                HttpStatusCode.Unauthorized => "Authentication required (401 Unauthorized).",
-                _ => "There was an HTTP error loading the feed.",
-            };
-            return PartialView(feed);
-        }
-        catch (Exception)
-        {
-            ViewBag.FeedError = "Network error: unable to connect to the feed URL.";
-            return PartialView(feed);
-        }
-
-        // Auto-detect feed type from Content-Type if still Unknown
-        if (feedType == FeedType.Unknown)
-        {
-            feedType = DetectFeedType(response.Content.Headers.ContentType?.MediaType);
-            feed.FeedType = feedType.ToString();
-        }
-
-        // Parse the feed content
-        IFeedParser? parser = _parserService.GetParser(feedType);
-        if (parser == null)
-        {
-            _logger.LogWarning(
-                "No parser found for feed type {FeedType} (feed: {Id})",
-                feedType,
-                id
+            FeedType feedType = DetermineFeedType(feed.FeedType);
+            HttpClient client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "RSS-Reader/0.1 (+https://github.com/yourrepo)"
             );
-            ViewBag.FeedError = "This feed type is not currently supported.";
-            return PartialView(feed);
-        }
 
-        ParsedFeed parsed;
-        try
-        {
-            using Stream stream = await response.Content.ReadAsStreamAsync();
-            parsed = await parser.ParseAsync(stream);
-        }
-        catch (JsonFeedFormatException jfEx)
-        {
-            ViewBag.FeedError = jfEx.Message;
-            return PartialView(feed);
-        }
-        catch (XmlException)
-        {
-            ViewBag.FeedError = "The feed URL returned content that could not be parsed.";
-            return PartialView(feed);
-        }
-        catch (FormatException)
-        {
-            ViewBag.FeedError = "The feed URL returned content in an unexpected format.";
-            return PartialView(feed);
-        }
-        catch (Exception)
-        {
-            ViewBag.FeedError = "There was an error parsing the feed";
-            return PartialView(feed);
-        }
+            if (feedType != FeedType.Unknown)
+                ConfigureAcceptHeaders(client, feedType);
 
-        // Update feed metadata
-        if (!string.IsNullOrEmpty(parsed.Title) && string.IsNullOrEmpty(feed.Title))
-            feed.Title = parsed.Title;
-        feed.Description = parsed.Description ?? feed.Description;
+            bool fetchSucceeded = false;
+            HttpResponseMessage? response = null;
+            IFeedParser? parser = null;
+            ParsedFeed? parsed = null;
 
-        // Merge parsed entries with existing (dedup by Guid then Link)
-        List<Entry> entries = feed.Entries ?? new List<Entry>();
-        foreach (var parsedEntry in parsed.Entries)
-        {
-            if (string.IsNullOrEmpty(parsedEntry.Guid) && string.IsNullOrEmpty(parsedEntry.Link))
-                continue;
-
-            Entry? existing = FindExistingEntry(entries, parsedEntry);
-            if (existing == null)
+            try
             {
-                entries.Add(CreateEntryFromParsed(feed.Id, parsedEntry));
+                response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // Auto-detect feed type from Content-Type if still Unknown
+                if (feedType == FeedType.Unknown)
+                {
+                    feedType = DetectFeedType(response.Content.Headers.ContentType?.MediaType);
+                    feed.FeedType = feedType.ToString();
+                }
+
+                parser = _parserService.GetParser(feedType);
+                if (parser == null)
+                {
+                    _logger.LogWarning("No parser found for feed type {FeedType} (feed: {Id})", feedType, id);
+                    feedError = "This feed type is not currently supported.";
+                }
+                else
+                {
+                    using Stream stream = await response.Content.ReadAsStreamAsync();
+                    parsed = await parser.ParseAsync(stream);
+                    fetchSucceeded = true;
+                }
+            }
+            catch (HttpRequestException http)
+            {
+                feedError = http.StatusCode switch
+                {
+                    HttpStatusCode.NotFound => "The feed URL returned a 404 Not Found error.",
+                    HttpStatusCode.Forbidden => "Access denied (403 Forbidden).",
+                    HttpStatusCode.Unauthorized => "Authentication required (401 Unauthorized).",
+                    _ => "There was an HTTP error loading the feed.",
+                };
+            }
+            catch (JsonFeedFormatException jfEx)
+            {
+                feedError = jfEx.Message;
+            }
+            catch (XmlException)
+            {
+                feedError = "The feed URL returned content that could not be parsed.";
+            }
+            catch (FormatException)
+            {
+                feedError = "The feed URL returned content in an unexpected format.";
+            }
+            catch (Exception)
+            {
+                feedError = "Network error: unable to connect to the feed URL.";
+            }
+
+            // Merge and save on success
+            if (fetchSucceeded && parsed != null)
+            {
+                if (!string.IsNullOrEmpty(parsed.Title) && string.IsNullOrEmpty(feed.Title))
+                    feed.Title = parsed.Title;
+                feed.Description = parsed.Description ?? feed.Description;
+
+                List<Entry> entries = feed.Entries ?? new List<Entry>();
+                foreach (var parsedEntry in parsed.Entries)
+                {
+                    if (string.IsNullOrEmpty(parsedEntry.Guid) && string.IsNullOrEmpty(parsedEntry.Link))
+                        continue;
+
+                    Entry? existing = FindExistingEntry(entries, parsedEntry);
+                    if (existing == null)
+                    {
+                        entries.Add(CreateEntryFromParsed(feed.Id, parsedEntry));
+                    }
+                }
+
+                feed.Entries = entries.OrderByDescending(e => e.PubDate).ToList();
+                _context.Feeds.Update(feed);
+                await _context.SaveChangesAsync();
             }
         }
 
-        feed.Entries = entries.OrderByDescending(e => e.PubDate).ToList();
-        _context.Feeds.Update(feed);
-        await _context.SaveChangesAsync();
+        // ── Build viewmodel with search/filter/sort/pagination ──
+        var entriesQuery = (feed.Entries ?? new List<Entry>()).AsEnumerable();
 
-        return PartialView(feed);
+        // Omni-search: split query by spaces, each term must match title OR description
+        if (!string.IsNullOrEmpty(q))
+        {
+            var terms = q.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
+            foreach (var term in terms)
+            {
+                // Local variable capture for term
+                string t = term;
+                entriesQuery = entriesQuery.Where(e =>
+                    (e.Title != null && e.Title.Contains(t, StringComparison.OrdinalIgnoreCase))
+                    || (
+                        e.Description != null
+                        && e.Description.Contains(t, StringComparison.OrdinalIgnoreCase)
+                    )
+                );
+            }
+        }
+
+        // Filter
+        if (filter_by == "unread")
+            entriesQuery = entriesQuery.Where(e => !e.IsRead);
+
+        // Sort
+        sort_by ??= "newest";
+        entriesQuery =
+            sort_by == "oldest"
+                ? entriesQuery.OrderBy(e => e.PubDate)
+                : entriesQuery.OrderByDescending(e => e.PubDate);
+
+        // Paginate
+        int totalCount = entriesQuery.Count();
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)per_page));
+        page = Math.Clamp(page, 1, totalPages);
+        var pagedEntries = entriesQuery
+            .Skip((page - 1) * per_page)
+            .Take(per_page)
+            .ToList();
+
+        var vm = new FeedViewModel
+        {
+            Feed = feed,
+            Entries = pagedEntries,
+            CurrentPage = page,
+            TotalPages = totalPages,
+            TotalCount = totalCount,
+            PerPage = per_page,
+            Query = q,
+            SortBy = sort_by,
+            FilterBy = filter_by ?? "all",
+            FeedError = feedError,
+        };
+        vm.ComputeDisplayRange();
+
+        // Return only the entries fragment when requested by AJAX filter controls
+        if (Request.Headers["X-Feed-Partial"] == "entries")
+            return PartialView("_FeedEntries", vm);
+
+        return PartialView(vm);
     }
 
     [HttpPost("/addfeed")]
