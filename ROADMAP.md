@@ -28,7 +28,6 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 ### Features
 - [x] Add support for reading JSON-based feeds with standard schema
 - [x] Store & display JSON entries with same UI structure as RSS
-- [ ] Manually configure feed URL and static field mappings
 - [x] Use shared data model to unify parsing logic
 
 ---
