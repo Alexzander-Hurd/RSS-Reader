@@ -15,7 +15,7 @@ public class RssFeedParser : IFeedParser
         var result = new ParsedFeed
         {
             Title = feedXml.Title?.Text,
-            Description = feedXml.Description?.Text
+            Description = feedXml.Description?.Text,
         };
 
         foreach (SyndicationItem item in feedXml.Items)
@@ -53,28 +53,36 @@ public class RssFeedParser : IFeedParser
             if (!string.IsNullOrEmpty(summary))
             {
                 // Use summary as full content only if nothing else is available and it's long
-                if (string.IsNullOrEmpty(fullContent) && string.IsNullOrEmpty(atomContent) && summary.Length > 1000)
+                if (
+                    string.IsNullOrEmpty(fullContent)
+                    && string.IsNullOrEmpty(atomContent)
+                    && summary.Length > 1000
+                )
                     fullContent = summary;
             }
 
             // Date handling: prefer LastUpdatedTime over PublishDate
-            DateTime pubDate = item.PublishDate.UtcDateTime == default
-                ? DateTime.UtcNow
-                : item.PublishDate.UtcDateTime;
+            DateTime pubDate =
+                item.PublishDate.UtcDateTime == default
+                    ? DateTime.UtcNow
+                    : item.PublishDate.UtcDateTime;
 
-            DateTime updatedDate = item.LastUpdatedTime.UtcDateTime == default
-                ? pubDate
-                : item.LastUpdatedTime.UtcDateTime;
+            DateTime updatedDate =
+                item.LastUpdatedTime.UtcDateTime == default
+                    ? pubDate
+                    : item.LastUpdatedTime.UtcDateTime;
 
-            result.Entries.Add(new ParsedEntry
-            {
-                Title = item.Title?.Text ?? "Untitled",
-                Link = link ?? "",
-                Guid = guid,
-                Description = summary ?? "",
-                FullContent = fullContent ?? "",
-                PubDate = updatedDate
-            });
+            result.Entries.Add(
+                new ParsedEntry
+                {
+                    Title = item.Title?.Text ?? "Untitled",
+                    Link = link ?? "",
+                    Guid = guid,
+                    Description = summary ?? "",
+                    FullContent = fullContent ?? "",
+                    PubDate = updatedDate,
+                }
+            );
         }
 
         return Task.FromResult(result);

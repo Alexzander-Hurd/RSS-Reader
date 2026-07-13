@@ -10,9 +10,7 @@ namespace RSS_Reader.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Entries_Feeds_FeedId",
-                table: "Entries");
+            migrationBuilder.DropForeignKey(name: "FK_Entries_Feeds_FeedId", table: "Entries");
 
             migrationBuilder.AlterColumn<string>(
                 name: "FeedId",
@@ -22,7 +20,8 @@ namespace RSS_Reader.Migrations
                 defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "TEXT",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Entries_Feeds_FeedId",
@@ -30,15 +29,14 @@ namespace RSS_Reader.Migrations
                 column: "FeedId",
                 principalTable: "Feeds",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Cascade
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Entries_Feeds_FeedId",
-                table: "Entries");
+            migrationBuilder.DropForeignKey(name: "FK_Entries_Feeds_FeedId", table: "Entries");
 
             migrationBuilder.AlterColumn<string>(
                 name: "FeedId",
@@ -46,14 +44,16 @@ namespace RSS_Reader.Migrations
                 type: "TEXT",
                 nullable: true,
                 oldClrType: typeof(string),
-                oldType: "TEXT");
+                oldType: "TEXT"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Entries_Feeds_FeedId",
                 table: "Entries",
                 column: "FeedId",
                 principalTable: "Feeds",
-                principalColumn: "Id");
+                principalColumn: "Id"
+            );
         }
     }
 }

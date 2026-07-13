@@ -14,15 +14,14 @@ namespace RSS_Reader.Migrations
                 name: "FeedType",
                 table: "Feeds",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "FeedType",
-                table: "Feeds");
+            migrationBuilder.DropColumn(name: "FeedType", table: "Feeds");
         }
     }
 }

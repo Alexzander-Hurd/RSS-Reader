@@ -9,9 +9,9 @@ public class FeedParserService
         _parsers = parsers.ToDictionary(p => p.FeedType);
     }
 
-    public IFeedParser? GetParser(FeedType type)
-        => _parsers.TryGetValue(type, out var parser) ? parser : null;
+    public IFeedParser? GetParser(FeedType type) =>
+        _parsers.TryGetValue(type, out var parser) ? parser : null;
 
-    public IFeedParser GetDefaultParser()
-        => _parsers.GetValueOrDefault(FeedType.Rss) ?? _parsers.Values.First();
+    public IFeedParser GetDefaultParser() =>
+        _parsers.GetValueOrDefault(FeedType.Rss) ?? _parsers.Values.First();
 }

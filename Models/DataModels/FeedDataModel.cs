@@ -11,5 +11,4 @@ public class Feed
     public string? Description { get; set; }
     public string? FeedType { get; set; }
     public List<Entry>? Entries { get; set; }
-
 }

@@ -18,8 +18,12 @@ public class HomeController : Controller
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly FeedParserService _parserService;
 
-    public HomeController(ILogger<HomeController> logger, ApplicationDbContext context,
-        IHttpClientFactory httpClientFactory, FeedParserService parserService)
+    public HomeController(
+        ILogger<HomeController> logger,
+        ApplicationDbContext context,
+        IHttpClientFactory httpClientFactory,
+        FeedParserService parserService
+    )
     {
         _logger = logger;
         _context = context;
@@ -73,28 +77,23 @@ public class HomeController : Controller
         try
         {
             response = await client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
         }
         catch (HttpRequestException http)
         {
-            if (http.StatusCode != null)
+            ViewBag.FeedError = http.StatusCode switch
             {
-                switch (http.StatusCode)
-                {
-                    case HttpStatusCode.NotFound:
-                        return Json(new { Title = "Feed not found", Message = "The feed you requested could not be found.", Success = false });
-                    case HttpStatusCode.Forbidden:
-                        return Json(new { Title = "Access denied", Message = "You do not have permission to access this feed.", Success = false });
-                    case HttpStatusCode.Unauthorized:
-                        return Json(new { Title = "Unauthorized", Message = "You are not authorized to access this feed.", Success = false });
-                    default:
-                        return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
-                }
-            }
-            return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
+                HttpStatusCode.NotFound => "The feed URL returned a 404 Not Found error.",
+                HttpStatusCode.Forbidden => "Access denied (403 Forbidden).",
+                HttpStatusCode.Unauthorized => "Authentication required (401 Unauthorized).",
+                _ => "There was an HTTP error loading the feed.",
+            };
+            return PartialView(feed);
         }
         catch (Exception)
         {
-            return Json(new { Title = "Error loading feed", Message = "There was an error loading the feed.", Success = false });
+            ViewBag.FeedError = "Network error: unable to connect to the feed URL.";
+            return PartialView(feed);
         }
 
         // Auto-detect feed type from Content-Type if still Unknown
@@ -108,8 +107,13 @@ public class HomeController : Controller
         IFeedParser? parser = _parserService.GetParser(feedType);
         if (parser == null)
         {
-            _logger.LogWarning("No parser found for feed type {FeedType} (feed: {Id})", feedType, id);
-            return Json(new { Title = "Unsupported feed type", Message = "This feed type is not supported.", Success = false });
+            _logger.LogWarning(
+                "No parser found for feed type {FeedType} (feed: {Id})",
+                feedType,
+                id
+            );
+            ViewBag.FeedError = "This feed type is not currently supported.";
+            return PartialView(feed);
         }
 
         ParsedFeed parsed;
@@ -120,15 +124,23 @@ public class HomeController : Controller
         }
         catch (JsonFeedFormatException jfEx)
         {
-            return Json(new { Title = "Unsupported JSON format", Message = jfEx.Message, Success = false });
+            ViewBag.FeedError = jfEx.Message;
+            return PartialView(feed);
         }
         catch (XmlException)
         {
-            return Json(new { Title = "Feed not parseable", Message = "The feed URL returned content that could not be parsed as XML.", Success = false });
+            ViewBag.FeedError = "The feed URL returned content that could not be parsed.";
+            return PartialView(feed);
         }
         catch (FormatException)
         {
-            return Json(new { Title = "Feed not parseable", Message = "The feed URL returned content in an unexpected format.", Success = false });
+            ViewBag.FeedError = "The feed URL returned content in an unexpected format.";
+            return PartialView(feed);
+        }
+        catch (Exception)
+        {
+            ViewBag.FeedError = "There was an error parsing the feed";
+            return PartialView(feed);
         }
 
         // Update feed metadata
@@ -162,7 +174,12 @@ public class HomeController : Controller
     {
         try
         {
-            _logger.LogInformation("Adding feed {Title} with url {Url} (type: {FeedType})", title, url, feedType ?? "auto");
+            _logger.LogInformation(
+                "Adding feed {Title} with url {Url} (type: {FeedType})",
+                title,
+                url,
+                feedType ?? "auto"
+            );
 
             Feed? feed = await _context.Feeds.FirstOrDefaultAsync(f => f.Link == url);
             if (feed == null)
@@ -345,10 +362,14 @@ public class HomeController : Controller
         switch (feedType)
         {
             case FeedType.Rss:
-                client.DefaultRequestHeaders.Accept.ParseAdd("application/rss+xml, application/xml");
+                client.DefaultRequestHeaders.Accept.ParseAdd(
+                    "application/rss+xml, application/xml"
+                );
                 break;
             case FeedType.JsonFeed:
-                client.DefaultRequestHeaders.Accept.ParseAdd("application/json, application/feed+json");
+                client.DefaultRequestHeaders.Accept.ParseAdd(
+                    "application/json, application/feed+json"
+                );
                 break;
         }
     }

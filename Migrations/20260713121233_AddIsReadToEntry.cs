@@ -15,15 +15,14 @@ namespace RSS_Reader.Migrations
                 table: "Entries",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsRead",
-                table: "Entries");
+            migrationBuilder.DropColumn(name: "IsRead", table: "Entries");
         }
     }
 }

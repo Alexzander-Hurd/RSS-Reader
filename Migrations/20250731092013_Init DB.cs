@@ -17,12 +17,13 @@ namespace RSS_Reader.Migrations
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     Title = table.Column<string>(type: "TEXT", nullable: true),
                     Link = table.Column<string>(type: "TEXT", nullable: true),
-                    Description = table.Column<string>(type: "TEXT", nullable: true)
+                    Description = table.Column<string>(type: "TEXT", nullable: true),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Feeds", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "Entries",
@@ -33,7 +34,7 @@ namespace RSS_Reader.Migrations
                     PubDate = table.Column<string>(type: "TEXT", nullable: true),
                     Link = table.Column<string>(type: "TEXT", nullable: true),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
-                    FeedId = table.Column<string>(type: "TEXT", nullable: true)
+                    FeedId = table.Column<string>(type: "TEXT", nullable: true),
                 },
                 constraints: table =>
                 {
@@ -42,23 +43,24 @@ namespace RSS_Reader.Migrations
                         name: "FK_Entries_Feeds_FeedId",
                         column: x => x.FeedId,
                         principalTable: "Feeds",
-                        principalColumn: "Id");
-                });
+                        principalColumn: "Id"
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Entries_FeedId",
                 table: "Entries",
-                column: "FeedId");
+                column: "FeedId"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "Entries");
+            migrationBuilder.DropTable(name: "Entries");
 
-            migrationBuilder.DropTable(
-                name: "Feeds");
+            migrationBuilder.DropTable(name: "Feeds");
         }
     }
 }

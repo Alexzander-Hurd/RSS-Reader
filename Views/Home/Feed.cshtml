@@ -38,9 +38,19 @@
     </div>
 </div>
 
+@if (ViewBag.FeedError != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+        <strong>Error loading feed:</strong> @ViewBag.FeedError
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 <div class="h-100 d-flex flex-column">
     <div class="flex-grow-1 overflow-auto">
-        @foreach (var item in Model.Entries ?? new List<Entry>())
+        @if (Model.Entries != null && Model.Entries.Any())
+        {
+            @foreach (var item in Model.Entries)
         {
             <div class="card mt-2 @(item.IsRead ? "card-read" : "card-unread")" style="width: 100%;">
                 <div class="card-body d-lg-inline-flex justify-content-between">
@@ -79,5 +89,12 @@
                     </div>
                 </div>
             }
-        </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <p class="text-muted">No entries available.</p>
+            </div>
+        }
     </div>
+</div>
