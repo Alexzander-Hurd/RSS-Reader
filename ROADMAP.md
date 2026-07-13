@@ -38,7 +38,10 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 **Goal**: Make it easier to interact with feed data and triage important entries.
 
 ### Features
-- [ ] Simple text search over titles/descriptions
+- [x] Simple text search over titles/descriptions
+- [x] Server-side sorting (newest / oldest)
+- [x] Server-side filtering (all entries / unread only)
+- [x] Pagination with configurable per-page (10 / 20 / 50)
 - [ ] Stack-specific filters (e.g., only show feeds tagged `network`, `linux`, etc.)
 - [ ] Tagging support for feeds and entries (manual or by keyword detection)
 
@@ -107,7 +110,9 @@ This roadmap is structured in **milestones** — each step produces a usable pro
 
 ### Features
 - [ ] Feed grouping and tagging
-- [ ] Custom sorting (newest, unread, per tag)
+- [x] Server-side sort by date (newest / oldest)
+- [ ] Unread-first sort
+- [ ] Per-tag sort
 - [ ] Configurable feed refresh schedule (per-feed basis)
 - [ ] Entry pinning (mark important items)
 
